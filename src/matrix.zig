@@ -49,6 +49,15 @@ pub fn GenericMatrix(comptime dim_col_i: comptime_int, comptime dim_row_i: compt
                 pub inline fn determinant(self: Self) Scalar {
                     return self.elements[0].x() * self.elements[1].y() - self.elements[1].x() * self.elements[0].y();
                 }
+
+                /// Computes inverse of 2x2 matrix
+                pub inline fn inverse(self: Self) Self {
+                    const det = self.determinant();
+                    return .{ .elements = .{
+                        RowVec.init(self.elements[1].y(), -self.elements[0].y()).divScalar(det),
+                        RowVec.init(-self.elements[1].x(), self.elements[0].x()).divScalar(det),
+                    } };
+                }
             },
             GenericMatrix(3, 3, Scalar) => struct {
                 /// Initialize 3x3 column-major matrix with row vectors
@@ -626,4 +635,12 @@ test "transform" {
         try std.testing.expectEqual(rotation, a.getRotation());
         try std.testing.expectEqual(scale, a.getScale());
     }
+}
+
+test "inverse" {
+    const Mat2x2 = GenericMatrix(2, 2, f32);
+    const Vec2 = Mat2x2.RowVec;
+
+    const a = Mat2x2.init(Vec2.init(4, 2), Vec2.init(7, 6)).inverse();
+    try std.testing.expectEqual(Mat2x2.init(Vec2.init(0.6, -0.2), Vec2.init(-0.7, 0.4)), a);
 }
