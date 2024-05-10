@@ -90,19 +90,13 @@ pub fn GenericMatrix(comptime dim_col_i: comptime_int, comptime dim_row_i: compt
 
                 /// Compute determinant of 3x3 matrix
                 pub inline fn determinant(self: Self) Scalar {
-                    const m00 = self.elements[0].x();
-                    const m01 = self.elements[0].y();
-                    const m02 = self.elements[0].z();
-                    const m10 = self.elements[1].x();
-                    const m11 = self.elements[1].y();
-                    const m12 = self.elements[1].z();
-                    const m20 = self.elements[2].x();
-                    const m21 = self.elements[2].y();
-                    const m22 = self.elements[2].z();
-
-                    return m00 * (m11 * m22 - m21 * m12) -
-                        m10 * (m01 * m22 - m21 * m02) +
-                        m20 * (m01 * m12 - m11 * m02);
+                    const m0 = self.elements[0].elements *
+                        self.elements[1].swizzle("yzx").elements *
+                        self.elements[2].swizzle("zxy").elements;
+                    const m1 = self.elements[0].swizzle("yxz").elements *
+                        self.elements[1].swizzle("xzy").elements *
+                        self.elements[2].swizzle("zyx").elements;
+                    return @reduce(.Add, m0 - m1);
                 }
 
                 /// Compute 3x3 column-major homogeneous 2D transformation matrix
@@ -151,7 +145,7 @@ pub fn GenericMatrix(comptime dim_col_i: comptime_int, comptime dim_row_i: compt
                 }
 
                 // Applies 2D translation, scale and rotation and returns a new matrix
-                pub inline fn transform(translationv: Vec2, rotationv: Scalar, scalev: Vec2) Self {
+                pub inline fn transformation(translationv: Vec2, rotationv: Scalar, scalev: Vec2) Self {
                     const cos_rot = @cos(rotationv);
                     const sin_rot = @sin(rotationv);
                     return .{ .elements = .{
@@ -332,7 +326,7 @@ pub fn GenericMatrix(comptime dim_col_i: comptime_int, comptime dim_row_i: compt
                 }
 
                 // Applies 3D translation, scale and rotation and returns a new matrix
-                pub inline fn transform(translationv: Vec3, rotationv: Vec3, scalev: Vec3) Self {
+                pub inline fn transformation(translationv: Vec3, rotationv: Vec3, scalev: Vec3) Self {
                     const cos_rot = rotationv.cos();
                     const sin_rot = rotationv.sin();
                     return .{ .elements = .{
@@ -401,17 +395,31 @@ pub fn GenericMatrix(comptime dim_col_i: comptime_int, comptime dim_row_i: compt
                     } };
                 }
 
-                /// perspective projection to NDC x=[-1, +1], y = [-1, +1] and z = [0, +1] with vertical FOV
-                pub inline fn frustumY(fov: Scalar, aspect_ratio: Scalar, near: Scalar, far: Scalar) Self {
+                /// perspective projection to NDC x=[-1, +1], y = [-1, +1] and z = [0, +1] with vertical FOV and reversedZ
+                pub inline fn perspectiveY(fov: Scalar, aspect_ratio: Scalar, near: Scalar, far: Scalar) Self {
                     const tangent = @tan(fov * 0.5);
                     const focal_length = 1 / tangent;
                     const A = near / (far - near);
 
                     return .{ .elements = .{
                         RowVec.init(focal_length / aspect_ratio, 0, 0, 0),
-                        RowVec.init(0, focal_length, 0, 0),
-                        RowVec.init(0, 0, A, -1),
-                        RowVec.iniit(0, 0, far * A, 0),
+                        RowVec.init(0, -focal_length, 0, 0),
+                        RowVec.init(0, 0, A, -1.0),
+                        RowVec.init(0, 0, far * A, 0),
+                    } };
+                }
+
+                /// perspective projection to NDC x=[-1, +1], y = [-1, +1] and z = [0, +1] with horizontal FOV and ReversedZ
+                pub inline fn perspectiveX(fov: Scalar, aspect_ratio: Scalar, near: Scalar, far: Scalar) Self {
+                    const tangent = @tan(fov * 0.5);
+                    const focal_length = 1 / tangent;
+                    const A = near / (far - near);
+
+                    return .{ .elements = .{
+                        RowVec.init(focal_length, 0, 0, 0),
+                        RowVec.init(0, -focal_length * aspect_ratio, 0, 0),
+                        RowVec.init(0, 0, A, -1.0),
+                        RowVec.init(0, 0, far * A, 0),
                     } };
                 }
             },
@@ -430,16 +438,23 @@ pub fn GenericMatrix(comptime dim_col_i: comptime_int, comptime dim_row_i: compt
 
             var result: @TypeOf(b) = undefined;
             if (is_vec) {
-                inline for (0..dim_row) |row_idx| {
-                    result.elements[row_idx] = a.row(row_idx).dot(b);
+                var sum: RowVec = RowVec.shuffle(b, undefined, [_]u32{0} ** dim_row).mul(a.col(0));
+                inline for (1..dim_row) |row_idx| {
+                    const b_col_i = RowVec.shuffle(b, undefined, [_]u32{row_idx} ** dim_row);
+                    const col_mul = b_col_i.mul(a.col(row_idx));
+                    sum = sum.add(col_mul);
                 }
+                result = sum;
             } else {
                 inline for (0..@TypeOf(b).dim_col) |col_idx| {
                     const b_col = b.col(col_idx);
-                    inline for (0..dim_row) |row_idx| {
-                        // bench dot vs unrolled sum
-                        result.elements[col_idx].elements[row_idx] = a.row(row_idx).dot(b_col);
+                    var sum: RowVec = RowVec.shuffle(b_col, undefined, [_]u32{0} ** dim_row).mul(a.col(0));
+                    inline for (1..dim_row) |row_idx| {
+                        const b_col_i = RowVec.shuffle(b_col, undefined, [_]u32{row_idx} ** dim_row);
+                        const col_mul = b_col_i.mul(a.col(row_idx));
+                        sum = sum.add(col_mul);
                     }
+                    result.elements[col_idx] = sum;
                 }
             }
             return result;
@@ -620,7 +635,7 @@ test "rotate" {
     }
 }
 
-test "transform" {
+test "transformation" {
     // Mat4x4
     {
         const Mat4x4 = GenericMatrix(4, 4, f32);
@@ -630,7 +645,7 @@ test "transform" {
         const rotation = Vec3.init(0.785398, -0.0872665, 0.349066);
         const scale = Vec3.init(4, 4, 4);
 
-        const a = Mat4x4.transform(position, rotation, scale);
+        const a = Mat4x4.transformation(position, rotation, scale);
         try std.testing.expectEqual(position, a.getTranslation());
         try std.testing.expectEqual(rotation, a.getRotation());
         try std.testing.expectEqual(scale, a.getScale());

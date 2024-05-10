@@ -222,6 +222,10 @@ pub fn GenericVector(comptime dim_i: comptime_int, comptime Scalar: type) type {
 
         // utilities
 
+        pub inline fn shuffle(a: Self, b: Self, mask: @Vector(dim, i32)) Self {
+            return .{ .elements = @shuffle(Scalar, a.elements, b.elements, mask) };
+        }
+
         pub inline fn splat(scalar: Scalar) Self {
             return .{ .elements = @splat(scalar) };
         }
