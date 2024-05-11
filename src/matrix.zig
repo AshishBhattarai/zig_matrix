@@ -321,7 +321,7 @@ pub fn GenericMatrix(comptime dim_col_i: comptime_int, comptime dim_row_i: compt
                 }
 
                 /// Applies 3D scale and returns a new matrix
-                pub inline fn scale(self: Self, vec: Vec2) Self {
+                pub inline fn scale(self: Self, vec: Vec3) Self {
                     return Self.mul(fromScale(vec), self);
                 }
 
