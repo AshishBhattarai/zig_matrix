@@ -17,8 +17,8 @@ pub fn GenericVector(comptime dim_i: comptime_int, comptime Scalar: type) type {
 
         pub usingnamespace switch (dim) {
             2 => struct {
-                pub inline fn init(sx: Scalar, sy: Scalar) Self {
-                    return .{ .elements = [2]Scalar{ sx, sy } };
+                pub inline fn init(xv: Scalar, yv: Scalar) Self {
+                    return .{ .elements = [2]Scalar{ xv, yv } };
                 }
 
                 pub inline fn x(self: Self) Scalar {
@@ -39,8 +39,8 @@ pub fn GenericVector(comptime dim_i: comptime_int, comptime Scalar: type) type {
                 }
             },
             3 => struct {
-                pub inline fn init(sx: Scalar, sy: Scalar, sz: Scalar) Self {
-                    return .{ .elements = [3]Scalar{ sx, sy, sz } };
+                pub inline fn init(xv: Scalar, yv: Scalar, zv: Scalar) Self {
+                    return .{ .elements = [3]Scalar{ xv, yv, zv } };
                 }
 
                 pub inline fn x(self: Self) Scalar {
@@ -65,8 +65,8 @@ pub fn GenericVector(comptime dim_i: comptime_int, comptime Scalar: type) type {
                 }
             },
             4 => struct {
-                pub inline fn init(sx: Scalar, sy: Scalar, sz: Scalar, sw: Scalar) Self {
-                    return .{ .elements = [4]Scalar{ sx, sy, sz, sw } };
+                pub inline fn init(xv: Scalar, yv: Scalar, zv: Scalar, sw: Scalar) Self {
+                    return .{ .elements = [4]Scalar{ xv, yv, zv, sw } };
                 }
 
                 pub inline fn fromVec3(vec3: GenericVector(3, Scalar), new_elem: Scalar) Self {
