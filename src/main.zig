@@ -1,5 +1,6 @@
 const GenericVector = @import("vector.zig").GenericVector;
 const GenericMatrix = @import("matrix.zig").GenericMatrix;
+const GenericQuat = @import("quat.zig").GenericQuat;
 
 pub const Vec2 = GenericVector(2, f32);
 pub const Vec3 = GenericVector(3, f32);
@@ -21,6 +22,10 @@ pub const Mat2x2h = GenericMatrix(2, 2, f16);
 pub const Mat3x3h = GenericMatrix(3, 3, f16);
 pub const Mat4x4h = GenericMatrix(4, 4, f16);
 
+pub const Quat = GenericQuat(f32);
+pub const Quath = GenericQuat(f16);
+pub const Quatd = GenericQuat(f64);
+
 pub const vec2 = Vec2.init;
 pub const vec3 = Vec3.init;
 pub const vec4 = Vec4.init;
@@ -40,6 +45,10 @@ pub const mat4x4d = Mat4x4d.init;
 pub const mat2x2h = Mat2x2h.init;
 pub const mat3x3h = Mat3x3h.init;
 pub const mat4x4h = Mat4x4h.init;
+
+pub const quat = Quat.init;
+pub const quath = Quat.init;
+pub const quatd = Quat.init;
 
 test {
     @import("std").testing.refAllDeclsRecursive(@This());

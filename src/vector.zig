@@ -145,10 +145,11 @@ pub fn GenericVector(comptime dim_i: comptime_int, comptime Scalar: type) type {
         }
 
         pub inline fn eqlApprox(a: Self, b: Self, tolerance: Scalar) bool {
-            inline for (dim) |i| {
-                if (!std.math.approxEqAbs(Scalar, a.elements[i], b.elements[i], tolerance)) return false;
+            var ret = false;
+            inline for (0..dim) |i| {
+                ret = ret or (@abs(a.elements[i] - b.elements[i]) <= tolerance);
             }
-            return true;
+            return ret;
         }
 
         // a < b ?
@@ -175,8 +176,7 @@ pub fn GenericVector(comptime dim_i: comptime_int, comptime Scalar: type) type {
 
         pub inline fn norm(self: Self) Self {
             const length = self.len();
-            std.debug.assert(length != 0.0);
-            return self.divScalar(length);
+            return if (length != 0) self.divScalar(length) else self;
         }
 
         pub inline fn sqrDist(a: Self, b: Self) Self {
@@ -197,7 +197,7 @@ pub fn GenericVector(comptime dim_i: comptime_int, comptime Scalar: type) type {
 
         // a * (1 -t) + bt
         pub inline fn lerp(a: Self, b: Self, t: Scalar) Self {
-            return a.mulScalar(1.0 - t).add(b.mulScalar(t));
+            return .{ .elements = a.elements + splat(t).elements * (b.elements - a.elements) };
         }
 
         pub inline fn inverse(self: Self) Self {
@@ -208,7 +208,12 @@ pub fn GenericVector(comptime dim_i: comptime_int, comptime Scalar: type) type {
             return self.mulScalar(-1.0);
         }
 
+        // assumes unit vectors
         pub inline fn angle(a: Self, b: Self) Scalar {
+            return std.math.acos(a.dot(b));
+        }
+
+        pub inline fn nAngle(a: Self, b: Self) Scalar {
             return std.math.acos((a.norm().dot(b.norm())));
         }
 
@@ -232,6 +237,22 @@ pub fn GenericVector(comptime dim_i: comptime_int, comptime Scalar: type) type {
 
         pub inline fn fromSlice(data: []const Scalar) Self {
             return .{ .elements = data[0..dim].* };
+        }
+
+        pub inline fn isInf(self: Self) bool {
+            var is_inf = false;
+            inline for (0..dim) |i| {
+                is_inf = std.math.isInf(self.elements[i]) or is_inf;
+            }
+            return is_inf;
+        }
+
+        pub inline fn isNan(self: Self) bool {
+            var is_nan = false;
+            inline for (0..dim) |i| {
+                is_nan = std.math.isNan(self.elements[i]) or is_nan;
+            }
+            return is_nan;
         }
 
         pub inline fn swizzle(self: Self, comptime components: []const u8) GenericVector(components.len, Scalar) {
@@ -450,4 +471,24 @@ test "norm" {
         const a = Vec3.init(5, 7, 10);
         try testing.expectEqual(Vec3.init(3.7904903e-1, 5.306686e-1, 7.5809807e-1), a.norm());
     }
+}
+
+test "lerp" {
+    // vec4
+    {
+        const Vec4 = GenericVector(4, f32);
+        const a = Vec4.init(1, 1, 1, 1);
+        const b = Vec4.init(10, 10, 10, 10);
+        try testing.expectEqual(Vec4.init(5.5, 5.5, 5.5, 5.5), a.lerp(b, 0.5));
+    }
+}
+
+test "isNan isInf" {
+    const Vec4 = GenericVector(4, f32);
+
+    const a = Vec4.init(std.math.inf(f32), std.math.inf(f32), std.math.inf(f32), std.math.inf(f32));
+    const b = Vec4.init(std.math.nan(f32), std.math.nan(f32), std.math.nan(f32), std.math.nan(f32));
+
+    try testing.expect(a.isInf());
+    try testing.expect(b.isNan());
 }

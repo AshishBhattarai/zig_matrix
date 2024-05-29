@@ -9,8 +9,8 @@ pub fn GenericMatrix(comptime dim_col_i: comptime_int, comptime dim_row_i: compt
 
     return extern struct {
         const Self = @This();
-        const RowVec = GenericVector(dim_row, Scalar);
-        const ColVec = GenericVector(dim_col, Scalar);
+        pub const RowVec = GenericVector(dim_row, Scalar);
+        pub const ColVec = GenericVector(dim_col, Scalar);
         pub const dim = dim_col * dim_row;
         pub const dim_col = dim_col_i;
         pub const dim_row = dim_row_i;
@@ -196,6 +196,14 @@ pub fn GenericMatrix(comptime dim_col_i: comptime_int, comptime dim_row_i: compt
                     );
                 }
 
+                pub inline fn toMat3(self: Self) GenericMatrix(3, 3, Scalar) {
+                    return GenericMatrix(3, 3, Scalar).init(
+                        self.elements[0].swizzle("xyz"),
+                        self.elements[1].swizzle("xyz"),
+                        self.elements[2].swizzle("xyz"),
+                    );
+                }
+
                 /// Compute 4x4 column-major homogeneous 2D scale matrix
                 pub inline fn fromSlice(data: *const [dim]Scalar) Self {
                     return .{ .elements = .{
@@ -277,7 +285,7 @@ pub fn GenericMatrix(comptime dim_col_i: comptime_int, comptime dim_row_i: compt
                 }
 
                 /// Compute 4x4 column-major homogeneous 3D rotation matrix from given euler_angle
-                /// rotation order is zyx
+                /// zyx order, mat = (z * y * x)
                 pub inline fn fromEulerAngles(euler_angle: Vec3) Self {
                     const cos_euler = euler_angle.cos();
                     const sin_euler = euler_angle.sin();
@@ -461,17 +469,21 @@ pub fn GenericMatrix(comptime dim_col_i: comptime_int, comptime dim_row_i: compt
         }
 
         /// Fetch row vector from give column index
-        pub inline fn col(self: Self, idx: usize) RowVec {
+        pub inline fn col(self: Self, idx: u32) RowVec {
             return self.elements[idx];
         }
 
         /// Fetch column vector from give row index
-        pub inline fn row(self: Self, row_idx: usize) ColVec {
+        pub inline fn row(self: Self, row_idx: u32) ColVec {
             var result: ColVec = undefined;
             inline for (0..dim_col) |col_idx| {
                 result.elements[col_idx] = self.elements[col_idx].elements[row_idx];
             }
             return result;
+        }
+
+        pub inline fn element(self: Self, col_idx: u32, row_idx: u32) Scalar {
+            return self.elements[col_idx].elements[row_idx];
         }
 
         pub inline fn splat(value: Scalar) Self {
