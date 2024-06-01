@@ -247,9 +247,9 @@ pub fn GenericQuat(comptime Scalar: type) type {
         }
 
         pub inline fn eqlApprox(a: Self, b: Self, tolerance: Scalar) bool {
-            var ret = false;
+            var ret = true;
             inline for (0..4) |i| {
-                ret = ret or (@abs(a.elements[i] - b.elements[i]) <= tolerance);
+                ret = ret and (@abs(a.elements[i] - b.elements[i]) <= tolerance);
             }
             return ret;
         }
@@ -330,6 +330,7 @@ test "mul" {
         const b = Quat.init(0, 1, 0, 0);
         const ab = a.mul(b);
         try testing.expect(ab.eql(Quat.init(0, 0, 1, 0)));
+        try testing.expect(!ab.eqlApprox(Quat.init(0, 0, 1, 1), 0.0001));
     }
     {
         const a = Quat.init(2, 4, 8, 16);

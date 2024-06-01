@@ -145,9 +145,9 @@ pub fn GenericVector(comptime dim_i: comptime_int, comptime Scalar: type) type {
         }
 
         pub inline fn eqlApprox(a: Self, b: Self, tolerance: Scalar) bool {
-            var ret = false;
+            var ret = true;
             inline for (0..dim) |i| {
-                ret = ret or (@abs(a.elements[i] - b.elements[i]) <= tolerance);
+                ret = ret and (@abs(a.elements[i] - b.elements[i]) <= tolerance);
             }
             return ret;
         }
