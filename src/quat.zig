@@ -263,7 +263,6 @@ pub fn GenericQuat(comptime Scalar: type) type {
         }
 
         pub inline fn sqrLen(self: Self) Scalar {
-            // q * conjugat(q)
             return @reduce(.Add, self.elements * self.elements);
         }
 

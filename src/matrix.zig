@@ -221,31 +221,26 @@ pub fn GenericMatrix(comptime dim_col_i: comptime_int, comptime dim_row_i: compt
 
                 /// Compute determinant of 4x4 matrix
                 pub inline fn determinant(self: Self) Scalar {
-                    const m00 = self.elements[0].x();
-                    const m01 = self.elements[0].y();
-                    const m02 = self.elements[0].z();
-                    const m03 = self.elements[0].w();
-                    const m10 = self.elements[1].x();
-                    const m11 = self.elements[1].y();
-                    const m12 = self.elements[1].z();
-                    const m13 = self.elements[1].w();
-                    const m20 = self.elements[2].x();
-                    const m21 = self.elements[2].y();
-                    const m22 = self.elements[2].z();
-                    const m23 = self.elements[2].w();
-                    const m30 = self.elements[3].x();
-                    const m31 = self.elements[3].y();
-                    const m32 = self.elements[3].z();
-                    const m33 = self.elements[3].w();
+                    const m0 = self.elements[2].swizzle("zyyx").mul(self.elements[3].swizzle("wwzw"));
+                    const m1 = self.elements[2].swizzle("wwzw").mul(self.elements[3].swizzle("zyyx"));
+                    const sub0 = m0.sub(m1);
 
-                    // zig fmt: off
-                    return (
-                        m00 * (m11 * (m22 * m33 - m32 * m23) - m21 * (m12 * m33 - m32 * m13) + m31 * (m12 * m23 - m22 * m13)) -
-                        m10 * (m01 * (m22 * m33 - m32 * m23) - m21 * (m02 * m33 - m32 * m03) + m31 * (m02 * m23 - m22 * m03)) +
-                        m20 * (m01 * (m12 * m33 - m32 * m13) - m11 * (m02 * m33 - m32 * m03) + m31 * (m02 * m13 - m12 * m03)) -
-                        m30 * (m01 * (m12 * m23 - m22 * m13) - m11 * (m02 * m23 - m22 * m03) + m21 * (m02 * m13 - m12 * m03))
-                    );
-                    // zig fmt: on
+                    const m2 = self.elements[2].swizzle("zyxx").mul(self.elements[3].swizzle("xxzy"));
+                    const m3 = m2.swizzle("zwzw");
+                    const sub1 = m3.sub(m2);
+
+                    const m4 = sub0.swizzle("xxyz").mul(self.elements[1].swizzle("yxxx"));
+                    const subTemp0 = sub0.shuffle(sub1, [_]i32{ 1, 3, 3, -1 });
+                    const m5 = subTemp0.mul(self.elements[1].swizzle("zzyy"));
+                    const subRes2 = m4.sub(m5);
+
+                    const subTemp1 = sub0.shuffle(sub1, [_]i32{ 2, -1, -2, -2 });
+                    const m6 = subTemp1.mul(self.elements[1].swizzle("wwwz"));
+
+                    const add = subRes2.add(m6);
+                    const det = add.mul(RowVec.init(1.0, -1.0, 1.0, -1.0));
+
+                    return self.elements[0].dot(det);
                 }
 
                 /// Compute 4x4 column-major homogeneous 3D transformation matrix
@@ -524,13 +519,13 @@ test "determinant" {
         const Vec4 = GenericVector(4, f32).init;
 
         const a = Mat4x4.init(
-            Vec4(6, 4, 2, 1),
-            Vec4(1, -2, 8, 3),
-            Vec4(1, 5, 7, 2),
-            Vec4(2, 4, 1, 5),
+            Vec4(8, 7, 3, 9),
+            Vec4(73, 9, 4, 1),
+            Vec4(2, 1, 7, 4),
+            Vec4(34, 2, 8, 7),
         );
 
-        try testing.expectEqual(-1471, a.determinant());
+        try testing.expectEqual(-19316, a.determinant());
     }
 }
 
