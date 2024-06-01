@@ -8,11 +8,13 @@ This is a work in progress matrix library for Zig. It aims to provide implementa
 - `Mat2x2`
 - `Mat3x3`
 - `Mat4x4`
+- `Quat`
 
 ## Features
 - Basic arithmetic operations for vectors and matrices.
 - Transposition, inversion, and determinant calculations for matrices.
 - Some common vector and matrix transformations.
+- Quaternions
 
 ## Installation
 To add this library to your Zig project using Zig's package manager, append the following to your `build.zig.zon` file:
