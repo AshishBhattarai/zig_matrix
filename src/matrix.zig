@@ -477,6 +477,16 @@ pub fn GenericMatrix(comptime dim_col_i: comptime_int, comptime dim_row_i: compt
             return result;
         }
 
+        pub inline fn setRow(self: *Self, row_idx: u32, vec: ColVec) void {
+            inline for (0..dim_col) |col_idx| {
+                self.elements[col_idx].elements[row_idx] = vec.elements[col_idx];
+            }
+        }
+
+        pub inline fn setCol(self: *Self, idx: u32, vec: RowVec) void {
+            self.elements[idx] = vec;
+        }
+
         pub inline fn element(self: Self, col_idx: u32, row_idx: u32) Scalar {
             return self.elements[col_idx].elements[row_idx];
         }
@@ -574,6 +584,26 @@ test "col" {
         vec4(-1, 6, -4, 8),
         vec4(9, -8, -6, -10),
     );
+
+    try testing.expectEqual(vec4(10, -5, 6, -2), a.col(0));
+}
+
+test "setRow" {
+    const Mat4x4 = GenericMatrix(4, 4, f32);
+    const vec4 = GenericVector(4, f32).init;
+
+    var a = Mat4x4.identity();
+    a.setRow(0, vec4(10, 0, -1, 9));
+
+    try testing.expectEqual(vec4(10, 0, -1, 9), a.row(0));
+}
+
+test "setCol" {
+    const Mat4x4 = GenericMatrix(4, 4, f32);
+    const vec4 = GenericVector(4, f32).init;
+
+    var a = Mat4x4.identity();
+    a.setCol(0, vec4(10, -5, 6, -2));
 
     try testing.expectEqual(vec4(10, -5, 6, -2), a.col(0));
 }
