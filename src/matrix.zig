@@ -99,6 +99,30 @@ pub fn GenericMatrix(comptime dim_col_i: comptime_int, comptime dim_row_i: compt
                     return @reduce(.Add, m0 - m1);
                 }
 
+                pub inline fn inverse(self: Self) Self {
+                    var inv: Self = undefined;
+
+                    // Compute Adjoint
+                    const temp10_a = self.elements[1].shuffle(self.elements[0], [3]i32{ 1, -2, -2 });
+                    const temp10_b = self.elements[1].shuffle(self.elements[0], [3]i32{ 2, -3, -3 });
+                    const temp10_c = self.elements[1].shuffle(self.elements[0], [3]i32{ 0, -1, -1 });
+                    const temp21_a = self.elements[2].shuffle(self.elements[1], [3]i32{ 1, 1, -2 });
+                    const temp21_b = self.elements[2].shuffle(self.elements[1], [3]i32{ 2, 2, -3 });
+                    const temp21_c = self.elements[2].shuffle(self.elements[1], [3]i32{ 0, 0, -1 });
+
+                    inv.elements[0] = temp10_a.mul(temp21_b).sub(temp10_b.mul(temp21_a)).mul(RowVec.init(1.0, -1.0, 1.0));
+                    inv.elements[1] = temp10_c.mul(temp21_b).sub(temp10_b.mul(temp21_c)).mul(RowVec.init(-1.0, 1.0, -1.0));
+                    inv.elements[2] = temp10_c.mul(temp21_a).sub(temp10_a.mul(temp21_c)).mul(RowVec.init(1.0, -1.0, 1.0));
+
+                    const inv_det = RowVec.splat(1.0 / self.elements[0].dot(inv.row(0)));
+
+                    inv.elements[0] = inv.elements[0].mul(inv_det);
+                    inv.elements[1] = inv.elements[1].mul(inv_det);
+                    inv.elements[2] = inv.elements[2].mul(inv_det);
+
+                    return inv;
+                }
+
                 /// Compute 3x3 column-major homogeneous 2D transformation matrix
                 pub inline fn fromTranslation(vec: Vec2) Self {
                     return .{ .elements = .{
@@ -242,6 +266,57 @@ pub fn GenericMatrix(comptime dim_col_i: comptime_int, comptime dim_row_i: compt
 
                     return self.elements[0].dot(det);
                 }
+
+                pub inline fn inverseTransUnitScale(self: Self) Self {
+                    var inv: Self = undefined;
+
+                    // transpose 3x3 rotation matrix
+                    const t0 = self.elements[0].shuffle(self.elements[1], [4]i32{ 0, 1, -1, -2 });
+                    const t1 = self.elements[0].shuffle(self.elements[1], [4]i32{ 2, 3, -3, -4 });
+                    inv.elements[0] = t0.shuffle(self.elements[2], [4]i32{ 0, 2, -1, -4 });
+                    inv.elements[1] = t0.shuffle(self.elements[2], [4]i32{ 1, 3, -2, -4 });
+                    inv.elements[2] = t1.shuffle(self.elements[2], [4]i32{ 0, 2, -3, -4 });
+
+                    // translation
+                    inv.elements[3] = inv.elements[0].mulScalar(self.elements[3].x());
+                    inv.elements[3] = inv.elements[3].add(inv.elements[1].mulScalar(self.elements[3].y()));
+                    inv.elements[3] = inv.elements[3].add(inv.elements[2].mulScalar(self.elements[3].z()));
+                    inv.elements[3] = RowVec.init(0, 0, 0, 1).sub(inv.elements[3]);
+
+                    return inv;
+                }
+
+                // only works for uniform scale
+                pub inline fn inverseTrans(self: Self) Self {
+                    var inv: Self = undefined;
+
+                    // transpose 3x3 rotation matrix
+                    const t0 = self.elements[0].shuffle(self.elements[1], [4]i32{ 0, 1, -1, -2 });
+                    const t1 = self.elements[0].shuffle(self.elements[1], [4]i32{ 2, 3, -3, -4 });
+                    inv.elements[0] = t0.shuffle(self.elements[2], [4]i32{ 0, 2, -1, -4 });
+                    inv.elements[1] = t0.shuffle(self.elements[2], [4]i32{ 1, 3, -2, -4 });
+                    inv.elements[2] = t1.shuffle(self.elements[2], [4]i32{ 0, 2, -3, -4 });
+
+                    // scale
+                    const scale2 = inv.elements[0].mul(inv.elements[0])
+                        .add(inv.elements[1].mul(inv.elements[1]))
+                        .add(inv.elements[2].mul(inv.elements[2]))
+                        .add(RowVec.init(0, 0, 0, 1));
+
+                    inv.elements[0] = inv.elements[0].div(scale2);
+                    inv.elements[1] = inv.elements[1].div(scale2);
+                    inv.elements[2] = inv.elements[2].div(scale2);
+
+                    // translation
+                    inv.elements[3] = inv.elements[0].mulScalar(self.elements[3].x());
+                    inv.elements[3] = inv.elements[3].add(inv.elements[1].mulScalar(self.elements[3].y()));
+                    inv.elements[3] = inv.elements[3].add(inv.elements[2].mulScalar(self.elements[3].z()));
+                    inv.elements[3] = RowVec.init(0, 0, 0, 1).sub(inv.elements[3]);
+
+                    return inv;
+                }
+
+                // pub inline fn inverse(self: Self) Self {}
 
                 /// Compute 4x4 column-major homogeneous 3D transformation matrix
                 pub inline fn fromTranslation(vec: Vec3) Self {
@@ -690,9 +765,53 @@ test "transformation" {
 }
 
 test "inverse" {
-    const Mat2x2 = GenericMatrix(2, 2, f32);
-    const Vec2 = Mat2x2.RowVec;
+    {
+        const Mat2x2 = GenericMatrix(2, 2, f32);
+        const Vec2 = Mat2x2.RowVec;
 
-    const a = Mat2x2.init(Vec2.init(4, 2), Vec2.init(7, 6)).inverse();
-    try std.testing.expectEqual(Mat2x2.init(Vec2.init(0.6, -0.2), Vec2.init(-0.7, 0.4)), a);
+        const a = Mat2x2.init(Vec2.init(4, 2), Vec2.init(7, 6)).inverse();
+        try std.testing.expectEqual(Mat2x2.init(Vec2.init(0.6, -0.2), Vec2.init(-0.7, 0.4)), a);
+    }
+
+    {
+        const Mat3x3 = GenericMatrix(3, 3, f32);
+        const Vec3 = Mat3x3.RowVec;
+
+        const a = Mat3x3.init(Vec3.init(2, 5, 1), Vec3.init(5, 8, 9), Vec3.init(4, 7, 3)).inverse();
+        try std.testing.expectEqual(Mat3x3.init(
+            Vec3.init(-1.3000001e0, -2.6666668e-1, 1.2333333e0),
+            Vec3.init(7.0000005e-1, 6.666667e-2, -4.3333337e-1),
+            Vec3.init(1.0000001e-1, 2.0000002e-1, -3e-1),
+        ), a);
+    }
+
+    // 4x4
+    // inverse transformation no scale
+    {
+        const Mat4x4 = GenericMatrix(4, 4, f32);
+        const Vec3 = GenericVector(3, f32);
+        const Vec4 = GenericVector(4, f32);
+
+        const a = Mat4x4.transformation(Vec3.init(-8.9, -10.2, -11.4), Vec3.init(0.5, 1.5, 1.0), Vec3.init(1, 1, 1));
+        const a_inv = a.inverseTransUnitScale();
+
+        const a_vec = Vec4.init(2, 3, 4, 1);
+        const vec = a.mul(a_vec);
+
+        try std.testing.expect(a_inv.mul(vec).eqlApprox(a_vec, 0.00001));
+    }
+    // inverse transformation no scale
+    {
+        const Mat4x4 = GenericMatrix(4, 4, f32);
+        const Vec3 = GenericVector(3, f32);
+        const Vec4 = GenericVector(4, f32);
+
+        const a = Mat4x4.transformation(Vec3.init(-8.9, -10.2, -11.4), Vec3.init(0.5, 1.5, 1.0), Vec3.init(12, 12, 12));
+        const a_inv = a.inverseTrans();
+
+        const a_vec = Vec4.init(2, 3, 4, 1);
+        const vec = a.mul(a_vec);
+
+        try std.testing.expect(a_inv.mul(vec).eqlApprox(a_vec, 0.00001));
+    }
 }
