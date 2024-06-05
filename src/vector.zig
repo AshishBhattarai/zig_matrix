@@ -269,6 +269,7 @@ pub fn GenericVector(comptime dim_i: comptime_int, comptime Scalar: type) type {
                 }
             }
 
+            @setEvalBranchQuota(100000);
             const swizzle_elems = comptime switch (components.len) {
                 2 => [2]Scalar{
                     charToElementIdx(components[0]),

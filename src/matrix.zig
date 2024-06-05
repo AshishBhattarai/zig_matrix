@@ -935,4 +935,22 @@ test "inverse" {
 
         try std.testing.expect(a_inv.mul(vec).eqlApprox(a_vec, 0.00001));
     }
+    {
+        const Mat4x4 = GenericMatrix(4, 4, f32);
+        const Vec4 = Mat4x4.RowVec;
+
+        const a = Mat4x4.init(
+            Vec4.init(2, 5, 4, 1),
+            Vec4.init(5, 8, 9, 7),
+            Vec4.init(4, 7, 3, 2),
+            Vec4.init(1, 6, 4, 3),
+        ).inverse();
+
+        try std.testing.expectEqual(Mat4x4.init(
+            Vec4.init(-1.4925373e-2, 1.0447761e-1, 2.2388059e-1, -3.880597e-1),
+            Vec4.init(-2.9850746e-2, -1.2437811e-1, 1.1442786e-1, 2.2388059e-1),
+            Vec4.init(4.1791043e-1, 7.462686e-2, -2.686567e-1, -1.3432835e-1),
+            Vec4.init(-4.925373e-1, 1.1442786e-1, 5.4726366e-2, 1.9402985e-1),
+        ), a);
+    }
 }
