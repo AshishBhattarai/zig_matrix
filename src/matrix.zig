@@ -85,7 +85,16 @@ pub fn GenericMatrix(comptime dim_col_i: comptime_int, comptime dim_row_i: compt
 
                 /// Transpose into a new 3x3 matrix
                 pub inline fn transpose(self: Self) Self {
-                    return .{ .elements = .{ self.row(0), self.row(1), self.row(2) } };
+                    var val: Self = undefined;
+
+                    const temp0 = @shuffle(Scalar, self.elements[0].elements, self.elements[1].elements, [4]i32{ 0, 1, -1, -2 });
+                    const temp1 = @shuffle(Scalar, self.elements[0].elements, self.elements[1].elements, [4]i32{ 2, -3, 2, -3 });
+
+                    val.elements[0] = .{ .elements = @shuffle(Scalar, temp0, self.elements[2].elements, [3]i32{ 0, 2, -1 }) };
+                    val.elements[1] = .{ .elements = @shuffle(Scalar, temp0, self.elements[2].elements, [3]i32{ 1, 3, -2 }) };
+                    val.elements[2] = .{ .elements = @shuffle(Scalar, temp1, self.elements[2].elements, [3]i32{ 0, 1, -3 }) };
+
+                    return val;
                 }
 
                 /// Compute determinant of 3x3 matrix
@@ -228,7 +237,7 @@ pub fn GenericMatrix(comptime dim_col_i: comptime_int, comptime dim_row_i: compt
                     );
                 }
 
-                /// Compute 4x4 column-major homogeneous 2D scale matrix
+                /// Compute 4x4 column-major homogeneous 3D scale matrix
                 pub inline fn fromSlice(data: *const [dim]Scalar) Self {
                     return .{ .elements = .{
                         RowVec.init(data[0], data[1], data[2], data[3]),
@@ -238,9 +247,21 @@ pub fn GenericMatrix(comptime dim_col_i: comptime_int, comptime dim_row_i: compt
                     } };
                 }
 
-                /// Transpose into a new 3x3 matrix
+                /// Transpose into a new 4x4 matrix
                 pub inline fn transpose(self: Self) Self {
-                    return .{ .elements = .{ self.row(0), self.row(1), self.row(2), self.row(3) } };
+                    var val: Self = undefined;
+
+                    const temp0 = self.elements[0].shuffle(self.elements[1], [4]i32{ 0, 1, -1, -2 });
+                    const temp1 = self.elements[2].shuffle(self.elements[3], [4]i32{ 0, 1, -1, -2 });
+                    const temp2 = self.elements[0].shuffle(self.elements[1], [4]i32{ 2, 3, -3, -4 });
+                    const temp3 = self.elements[2].shuffle(self.elements[3], [4]i32{ 2, 3, -3, -4 });
+
+                    val.elements[0] = temp0.shuffle(temp1, [4]i32{ 0, 2, -1, -3 });
+                    val.elements[1] = temp0.shuffle(temp1, [4]i32{ 1, 3, -2, -4 });
+                    val.elements[2] = temp2.shuffle(temp3, [4]i32{ 0, 2, -1, -3 });
+                    val.elements[3] = temp2.shuffle(temp3, [4]i32{ 1, 3, -2, -4 });
+
+                    return val;
                 }
 
                 /// Compute determinant of 4x4 matrix
@@ -278,9 +299,9 @@ pub fn GenericMatrix(comptime dim_col_i: comptime_int, comptime dim_row_i: compt
                     inv.elements[2] = t1.shuffle(self.elements[2], [4]i32{ 0, 2, -3, -4 });
 
                     // translation
-                    inv.elements[3] = inv.elements[0].mulScalar(self.elements[3].x());
-                    inv.elements[3] = inv.elements[3].add(inv.elements[1].mulScalar(self.elements[3].y()));
-                    inv.elements[3] = inv.elements[3].add(inv.elements[2].mulScalar(self.elements[3].z()));
+                    inv.elements[3] = inv.elements[0].mul(self.elements[3].swizzle("xxxx"));
+                    inv.elements[3] = inv.elements[3].add(inv.elements[1].mul(self.elements[3].swizzle("yyyy")));
+                    inv.elements[3] = inv.elements[3].add(inv.elements[2].mul(self.elements[3].swizzle("zzzz")));
                     inv.elements[3] = RowVec.init(0, 0, 0, 1).sub(inv.elements[3]);
 
                     return inv;
@@ -308,15 +329,78 @@ pub fn GenericMatrix(comptime dim_col_i: comptime_int, comptime dim_row_i: compt
                     inv.elements[2] = inv.elements[2].div(scale2);
 
                     // translation
-                    inv.elements[3] = inv.elements[0].mulScalar(self.elements[3].x());
-                    inv.elements[3] = inv.elements[3].add(inv.elements[1].mulScalar(self.elements[3].y()));
-                    inv.elements[3] = inv.elements[3].add(inv.elements[2].mulScalar(self.elements[3].z()));
+                    inv.elements[3] = inv.elements[0].mul(self.elements[3].swizzle("xxxx"));
+                    inv.elements[3] = inv.elements[3].add(inv.elements[1].mul(self.elements[3].swizzle("yyyy")));
+                    inv.elements[3] = inv.elements[3].add(inv.elements[2].mul(self.elements[3].swizzle("zzzz")));
                     inv.elements[3] = RowVec.init(0, 0, 0, 1).sub(inv.elements[3]);
 
                     return inv;
                 }
 
-                // pub inline fn inverse(self: Self) Self {}
+                // https://lxjk.github.io/2017/09/03/Fast-4x4-Matrix-Inverse-with-SSE-SIMD-Explained.html
+                pub inline fn inverse(self: Self) Self {
+                    const a = self.elements[0].shuffle(self.elements[1], [4]i32{ 0, 1, -1, -2 });
+                    const c = self.elements[0].shuffle(self.elements[1], [4]i32{ 2, 3, -3, -4 });
+                    const b = self.elements[2].shuffle(self.elements[3], [4]i32{ 0, 1, -1, -2 });
+                    const d = self.elements[2].shuffle(self.elements[3], [4]i32{ 2, 3, -3, -4 });
+
+                    var temp0 = self.elements[0].shuffle(self.elements[2], [4]i32{ 0, 2, -1, -3 });
+                    var temp1 = self.elements[1].shuffle(self.elements[3], [4]i32{ 1, 3, -2, -4 });
+                    var temp2 = self.elements[0].shuffle(self.elements[2], [4]i32{ 1, 3, -2, -4 });
+                    var temp3 = self.elements[1].shuffle(self.elements[3], [4]i32{ 0, 2, -1, -3 });
+                    const det_sub = temp0.mul(temp1).sub(temp2.mul(temp3));
+
+                    const det_a = det_sub.swizzle("xxxx");
+                    const det_c = det_sub.swizzle("yyyy");
+                    const det_b = det_sub.swizzle("zzzz");
+                    const det_d = det_sub.swizzle("wwww");
+
+                    temp0 = d.swizzle("wxwx").mul(c)
+                        .sub(d.swizzle("zyzy").mul(c.swizzle("yxwz")));
+                    temp1 = a.swizzle("wxwx").mul(b)
+                        .sub(a.swizzle("zyzy").mul(b.swizzle("yxwz")));
+
+                    temp2 = b.mul(temp0.swizzle("xxww"))
+                        .add(b.swizzle("zwxy").mul(temp0.swizzle("yyzz")));
+                    temp3 = c.mul(temp1.swizzle("xxww"))
+                        .add(c.swizzle("zwxy").mul(temp1.swizzle("yyzz")));
+
+                    var temp_x = det_d.mul(a).sub(temp2);
+                    var temp_w = det_a.mul(d).sub(temp3);
+
+                    temp2 = d.mul(temp1.swizzle("wwxx"))
+                        .sub(d.swizzle("zwxy").mul(temp1.swizzle("yyzz")));
+                    temp3 = a.mul(temp0.swizzle("wwxx"))
+                        .sub(a.swizzle("zwxy").mul(temp0.swizzle("yyzz")));
+
+                    var det_m = det_a.mul(det_d);
+
+                    var temp_y = det_b.mul(c).sub(temp2);
+                    var temp_z = det_c.mul(b).sub(temp3);
+
+                    det_m = det_m.add(det_b.mul(det_c));
+
+                    var tr = temp1.mul(temp0.swizzle("xzyw"));
+                    tr = tr.swizzle("xzxz").add(tr.swizzle("ywyw"));
+                    tr = tr.swizzle("xzxz").add(tr.swizzle("ywyw"));
+
+                    det_m = det_m.sub(tr);
+                    det_m = RowVec.init(1, -1, -1, 1).div(det_m);
+
+                    temp_x = temp_x.mul(det_m);
+                    temp_y = temp_y.mul(det_m);
+                    temp_z = temp_z.mul(det_m);
+                    temp_w = temp_w.mul(det_m);
+
+                    var inv: Self = undefined;
+
+                    inv.elements[0] = temp_x.shuffle(temp_z, [4]i32{ 3, 1, -4, -2 });
+                    inv.elements[1] = temp_x.shuffle(temp_z, [4]i32{ 2, 0, -3, -1 });
+                    inv.elements[2] = temp_y.shuffle(temp_w, [4]i32{ 3, 1, -4, -2 });
+                    inv.elements[3] = temp_y.shuffle(temp_w, [4]i32{ 2, 0, -3, -1 });
+
+                    return inv;
+                }
 
                 /// Compute 4x4 column-major homogeneous 3D transformation matrix
                 pub inline fn fromTranslation(vec: Vec3) Self {
@@ -615,24 +699,47 @@ test "determinant" {
 }
 
 test "transpose" {
-    const Mat4x4 = GenericMatrix(4, 4, f32);
-    const vec4 = GenericVector(4, f32).init;
+    // Mat3x3
+    {
+        const Mat3x3 = GenericMatrix(3, 3, f32);
+        const vec3 = GenericVector(3, f32).init;
 
-    const a = Mat4x4.init(
-        vec4(10, -5, 6, -2),
-        vec4(0, -1, 0, 9),
-        vec4(-1, 6, -4, 8),
-        vec4(9, -8, -6, -10),
-    );
+        const a = Mat3x3.init(
+            vec3(10, -5, 6),
+            vec3(0, -1, 0),
+            vec3(-1, 6, -4),
+        );
 
-    const expected = Mat4x4.init(
-        vec4(10, 0, -1, 9),
-        vec4(-5, -1, 6, -8),
-        vec4(6, 0, -4, -6),
-        vec4(-2, 9, 8, -10),
-    );
+        const expected = Mat3x3.init(
+            vec3(10, 0, -1),
+            vec3(-5, -1, 6),
+            vec3(6, 0, -4),
+        );
 
-    try testing.expectEqual(expected, a.transpose());
+        try testing.expectEqual(expected, a.transpose());
+    }
+
+    // Mat4x4
+    {
+        const Mat4x4 = GenericMatrix(4, 4, f32);
+        const vec4 = GenericVector(4, f32).init;
+
+        const a = Mat4x4.init(
+            vec4(10, -5, 6, -2),
+            vec4(0, -1, 0, 9),
+            vec4(-1, 6, -4, 8),
+            vec4(9, -8, -6, -10),
+        );
+
+        const expected = Mat4x4.init(
+            vec4(10, 0, -1, 9),
+            vec4(-5, -1, 6, -8),
+            vec4(6, 0, -4, -6),
+            vec4(-2, 9, 8, -10),
+        );
+
+        try testing.expectEqual(expected, a.transpose());
+    }
 }
 
 test "row" {
@@ -808,6 +915,20 @@ test "inverse" {
 
         const a = Mat4x4.transformation(Vec3.init(-8.9, -10.2, -11.4), Vec3.init(0.5, 1.5, 1.0), Vec3.init(12, 12, 12));
         const a_inv = a.inverseTrans();
+
+        const a_vec = Vec4.init(2, 3, 4, 1);
+        const vec = a.mul(a_vec);
+
+        try std.testing.expect(a_inv.mul(vec).eqlApprox(a_vec, 0.00001));
+    }
+    // inverse
+    {
+        const Mat4x4 = GenericMatrix(4, 4, f32);
+        const Vec3 = GenericVector(3, f32);
+        const Vec4 = GenericVector(4, f32);
+
+        const a = Mat4x4.transformation(Vec3.init(-8.9, -10.2, -11.4), Vec3.init(0.5, 1.5, 1.0), Vec3.init(10, 8, 12));
+        const a_inv = a.inverse();
 
         const a_vec = Vec4.init(2, 3, 4, 1);
         const vec = a.mul(a_vec);
