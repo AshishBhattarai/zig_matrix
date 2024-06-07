@@ -431,9 +431,9 @@ pub fn GenericMatrix(comptime dim_col_i: comptime_int, comptime dim_row_i: compt
                     const sz = sin_angle * axis.z();
 
                     return .{ .elements = .{
-                        RowVec.init(xx * cos_value + cos_angle, xy * cos_value - sz, xz * cos_value + sy, 0),
-                        RowVec.init(xy * cos_value + sz, yy * cos_value + cos_angle, yz * cos_value - sx, 0),
-                        RowVec.init(xz * cos_value - sy, yz * cos_value + sx, zz * cos_value + cos_angle, 0),
+                        RowVec.init(xx * cos_value + cos_angle, xy * cos_value + sz, xz * cos_value - sy, 0),
+                        RowVec.init(xy * cos_value - sz, yy * cos_value + cos_angle, yz * cos_value + sx, 0),
+                        RowVec.init(xz * cos_value + sy, yz * cos_value - sx, zz * cos_value + cos_angle, 0),
                         RowVec.init(0, 0, 0, 1),
                     } };
                 }
@@ -447,17 +447,22 @@ pub fn GenericMatrix(comptime dim_col_i: comptime_int, comptime dim_row_i: compt
                     return .{ .elements = .{
                         RowVec.init(
                             cos_euler.z() * cos_euler.y(),
-                            cos_euler.z() * sin_euler.y() * sin_euler.x() - sin_euler.z() * cos_euler.x(),
-                            cos_euler.z() * sin_euler.y() * cos_euler.x() + sin_euler.z() * sin_euler.x(),
+                            sin_euler.z() * cos_euler.y(),
+                            -sin_euler.y(),
                             0,
                         ),
                         RowVec.init(
-                            sin_euler.z() * cos_euler.y(),
+                            cos_euler.z() * sin_euler.y() * sin_euler.x() - sin_euler.z() * cos_euler.x(),
                             sin_euler.z() * sin_euler.y() * sin_euler.x() + cos_euler.z() * cos_euler.x(),
-                            sin_euler.z() * sin_euler.y() * cos_euler.x() - cos_euler.z() * sin_euler.x(),
+                            cos_euler.y() * sin_euler.x(),
                             0,
                         ),
-                        RowVec.init(-sin_euler.y(), cos_euler.y() * sin_euler.x(), cos_euler.y() * cos_euler.x(), 0),
+                        RowVec.init(
+                            cos_euler.z() * sin_euler.y() * cos_euler.x() + sin_euler.z() * sin_euler.x(),
+                            sin_euler.z() * sin_euler.y() * cos_euler.x() - cos_euler.z() * sin_euler.x(),
+                            cos_euler.y() * cos_euler.x(),
+                            0,
+                        ),
                         RowVec.init(0, 0, 0, 1),
                     } };
                 }
@@ -491,27 +496,30 @@ pub fn GenericMatrix(comptime dim_col_i: comptime_int, comptime dim_row_i: compt
                 pub inline fn transformation(translationv: Vec3, rotationv: Vec3, scalev: Vec3) Self {
                     const cos_rot = rotationv.cos();
                     const sin_rot = rotationv.sin();
-                    return .{ .elements = .{
-                        RowVec.init(
-                            cos_rot.z() * cos_rot.y() * scalev.x(),
-                            (cos_rot.z() * sin_rot.y() * sin_rot.x() - sin_rot.z() * cos_rot.x()) * scalev.y(),
-                            (cos_rot.z() * sin_rot.y() * cos_rot.x() + sin_rot.z() * sin_rot.x()) * scalev.z(),
-                            0,
-                        ),
-                        RowVec.init(
-                            sin_rot.z() * cos_rot.y() * scalev.x(),
-                            (sin_rot.z() * sin_rot.y() * sin_rot.x() + cos_rot.z() * cos_rot.x()) * scalev.y(),
-                            (sin_rot.z() * sin_rot.y() * cos_rot.x() - cos_rot.z() * sin_rot.x()) * scalev.z(),
-                            0,
-                        ),
-                        RowVec.init(
-                            -sin_rot.y() * scalev.x(),
-                            cos_rot.y() * sin_rot.x() * scalev.y(),
-                            cos_rot.y() * cos_rot.x() * scalev.z(),
-                            0,
-                        ),
-                        RowVec.fromVec3(translationv, 1.0),
-                    } };
+
+                    return .{
+                        .elements = .{
+                            RowVec.init(
+                                cos_rot.z() * cos_rot.y() * scalev.x(),
+                                sin_rot.z() * cos_rot.y() * scalev.x(),
+                                -sin_rot.y() * scalev.x(),
+                                0,
+                            ),
+                            RowVec.init(
+                                (cos_rot.z() * sin_rot.y() * sin_rot.x() - sin_rot.z() * cos_rot.x()) * scalev.y(),
+                                (sin_rot.z() * sin_rot.y() * sin_rot.x() + cos_rot.z() * cos_rot.x()) * scalev.y(),
+                                cos_rot.y() * sin_rot.x() * scalev.y(),
+                                0,
+                            ),
+                            RowVec.init(
+                                (cos_rot.z() * sin_rot.y() * cos_rot.x() + sin_rot.z() * sin_rot.x()) * scalev.z(),
+                                (sin_rot.z() * sin_rot.y() * cos_rot.x() - cos_rot.z() * sin_rot.x()) * scalev.z(),
+                                cos_rot.y() * cos_rot.x() * scalev.z(),
+                                0,
+                            ),
+                            RowVec.fromVec3(translationv, 1.0),
+                        },
+                    };
                 }
 
                 /// Extract vec3 translation from matrix
@@ -525,14 +533,18 @@ pub fn GenericMatrix(comptime dim_col_i: comptime_int, comptime dim_row_i: compt
                     const col_b = self.elements[1].swizzle("xyz").norm();
                     const col_c = self.elements[2].swizzle("xyz").norm();
 
-                    const theta_x = std.math.atan2(col_c.y(), col_c.z());
-                    const c2 = @sqrt(col_a.x() * col_a.x() + col_b.x() * col_b.x());
-                    const theta_y = std.math.atan2(-col_c.x(), c2);
+                    const theta_x = std.math.atan2(col_b.z(), col_c.z());
+                    const c2 = @sqrt(col_a.x() * col_a.x() + col_a.y() * col_a.y());
+                    const theta_y = std.math.atan2(-col_a.z(), c2);
                     const s1 = @sin(theta_x);
                     const c1 = @cos(theta_x);
-                    const theta_z = std.math.atan2(s1 * col_a.z() - c1 * col_a.y(), c1 * col_b.y() - s1 * col_b.z());
+                    const theta_z = std.math.atan2(s1 * col_c.x() - c1 * col_b.x(), c1 * col_b.y() - s1 * col_c.y());
 
                     return Vec3.init(theta_x, theta_y, theta_z);
+                }
+
+                pub inline fn toEulerAngles(self: Self) Vec3 {
+                    return self.getRotation();
                 }
 
                 /// Extract vec3 scale from matrix
@@ -839,7 +851,7 @@ test "extractRotation" {
         const Vec3 = GenericVector(3, f32);
 
         const a = Mat4x4.fromEulerAngles(Vec3.init(0.785398, -0.0872665, 0.349066));
-        try std.testing.expectEqual(Vec3.init(0.785398, -0.0872665, 0.349066), a.getRotation());
+        try std.testing.expectEqual(Vec3.init(0.78539795, -0.0872665, 0.34906596), a.getRotation());
     }
 }
 
@@ -861,7 +873,7 @@ test "transformation" {
         const Vec3 = GenericVector(3, f32);
 
         const position = Vec3.init(20, 40, -50);
-        const rotation = Vec3.init(0.785398, -0.0872665, 0.349066);
+        const rotation = Vec3.init(0.78539795, -0.0872665, 0.34906596);
         const scale = Vec3.init(4, 4, 4);
 
         const a = Mat4x4.transformation(position, rotation, scale);

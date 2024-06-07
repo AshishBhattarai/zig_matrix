@@ -63,7 +63,8 @@ pub fn GenericQuat(comptime Scalar: type) type {
         pub inline fn rotate(self: Self, vec: Vec3) Vec3 {
             const qvec = self.getVec();
             const t = qvec.cross(vec).mulScalar(2.0);
-            return vec.addScalar(self.w()).mul(t).add(qvec.cross(t));
+            const qw: Vec3 = .{ .elements = @shuffle(Scalar, self.elements, undefined, [3]i32{ 3, 3, 3 }) };
+            return vec.add(t.mul(qw)).add(qvec.cross(t));
         }
 
         // quat * quat(sin(angle*0.5), 0, 0, cos(angle*0.5))
@@ -142,9 +143,9 @@ pub fn GenericQuat(comptime Scalar: type) type {
             const wz = self.w() * self.z();
 
             return Mat3.init(
-                Mat3.RowVec.init(1 - 2 * (yy + zz), 2 * (xy - wz), 2 * (xz + wy)),
-                Mat3.RowVec.init(2 * (xy + wz), 1 - 2 * (xx + zz), 2 * (yz - wx)),
-                Mat3.RowVec.init(2 * (xz - wy), 2 * (yz + wx), 1 - 2 * (xx + yy)),
+                Mat3.RowVec.init(1 - 2 * (yy + zz), 2 * (xy + wz), 2 * (xz - wy)),
+                Mat3.RowVec.init(2 * (xy - wz), 1 - 2 * (xx + zz), 2 * (yz + wx)),
+                Mat3.RowVec.init(2 * (xz + wy), 2 * (yz - wx), 1 - 2 * (xx + yy)),
             );
         }
 
@@ -160,29 +161,29 @@ pub fn GenericQuat(comptime Scalar: type) type {
             const t0 = 1 + m00 - m11 - m22;
             const q0 = Elements{
                 t0,
-                mat.element(1, 0) + mat.element(0, 1),
-                mat.element(0, 2) + mat.element(2, 0),
-                mat.element(2, 1) - mat.element(1, 2),
+                mat.element(0, 1) + mat.element(1, 0),
+                mat.element(2, 0) + mat.element(0, 2),
+                mat.element(1, 2) - mat.element(2, 1),
             };
             const t1 = 1 - m00 + m11 - m22;
             const q1 = Elements{
-                mat.element(1, 0) + mat.element(0, 1),
+                mat.element(0, 1) + mat.element(1, 0),
                 t1,
-                mat.element(2, 1) + mat.element(1, 2),
-                mat.element(0, 2) - mat.element(2, 0),
+                mat.element(1, 2) + mat.element(2, 1),
+                mat.element(2, 0) - mat.element(0, 2),
             };
             const t2 = 1 - m00 - m11 + m22;
             const q2 = Elements{
-                mat.element(0, 2) + mat.element(2, 0),
-                mat.element(2, 1) + mat.element(1, 2),
+                mat.element(2, 0) + mat.element(0, 2),
+                mat.element(1, 2) + mat.element(2, 1),
                 t2,
-                mat.element(1, 0) - mat.element(0, 1),
+                mat.element(0, 1) - mat.element(1, 0),
             };
             const t3 = 1 + m00 + m11 + m22;
             const q3 = Elements{
-                mat.element(2, 1) + mat.element(1, 2),
-                mat.element(0, 2) + mat.element(2, 0),
-                mat.element(1, 0) - mat.element(0, 1),
+                mat.element(1, 2) - mat.element(2, 1),
+                mat.element(2, 0) - mat.element(0, 2),
+                mat.element(0, 1) - mat.element(1, 0),
                 t3,
             };
 
@@ -190,7 +191,7 @@ pub fn GenericQuat(comptime Scalar: type) type {
             const q23, const t23 = if (m00 < -m11) .{ q2, t2 } else .{ q3, t3 };
             const q, const t = if (m22 < 0) .{ q01, t01 } else .{ q23, t23 };
 
-            return .{ .element = (q * splat(0.5)) / splat(@sqrt(t)) };
+            return .{ .elements = (q * splat(0.5 / @sqrt(t))) };
         }
 
         pub inline fn fromMat4(mat: Mat4) Self {
@@ -347,10 +348,10 @@ test "rotate" {
     const Quat = GenericQuat(f32);
     const Vec3 = GenericVector(3, f32);
 
-    const a = Quat.init(2, 4, 8, 16).norm();
-    const v = Vec3.init(5, 6, 7);
+    const a = Quat.fromEulerAngles(Vec3.splat(0.785398));
+    const v = Vec3.init(0, 0, 1);
 
-    const expect = Vec3.init(-1.4140643e1, 1.8520576e1, -6.0505233e0);
+    const expect = Vec3.init(8.535533e-1, -1.4644669e-1, 5.000001e-1);
     try testing.expectEqual(expect, a.rotate(v));
 }
 
@@ -358,8 +359,8 @@ test "eulerAngles" {
     const Quat = GenericQuat(f32);
     const Vec3 = GenericVector(3, f32);
 
-    const angles = Vec3.init(0.78539807, 0.523599, 0);
-    const a = Quat.fromEulerAngles(Vec3.init(0.785398, 0.523599, 0));
+    const angles = Vec3.init(0.78539807, 0.523599, 0.2);
+    const a = Quat.fromEulerAngles(Vec3.init(0.785398, 0.523599, 0.2));
 
     try testing.expect(angles.eqlApprox(a.toEulerAngles(), 0.000001));
 }
@@ -402,10 +403,36 @@ test "toMat3" {
     const a = Quat.fromAxis(std.math.pi / 4.0, Vec3.init(0, 0, 1));
 
     try testing.expectEqual(Mat3.init(
-        Vec3.init(7.071067e-1, -7.071068e-1, 0e0),
-        Vec3.init(7.071068e-1, 7.071067e-1, 0e0),
+        Vec3.init(7.071067e-1, 7.071068e-1, 0e0),
+        Vec3.init(-7.071068e-1, 7.071067e-1, 0e0),
         Vec3.init(0e0, 0e0, 1e0),
     ), a.toMat3());
+}
+
+test "rotation" {
+    const Quat = GenericQuat(f32);
+    const Vec3 = GenericVector(3, f32);
+    const Vec4 = GenericVector(4, f32);
+
+    const aa = Quat.fromEulerAngles(Vec3.splat(0.785398));
+    const v1 = Vec3.init(0, 0, 1);
+    const v2 = Vec4.init(0, 0, 1, 1);
+
+    const expect = Vec3.init(8.535533e-1, -1.4644669e-1, 5.000001e-1);
+
+    try testing.expectEqual(expect, aa.rotate(v1));
+    try testing.expectEqual(expect, aa.toMat4().mul(v2).swizzle("xyz"));
+}
+
+test "fromMat4" {
+    const Quat = GenericQuat(f32);
+    const Vec3 = GenericVector(3, f32);
+    const Mat4 = GenericMatrix(4, 4, f32);
+
+    const mat = Mat4.fromEulerAngles(Vec3.init(0.78539795, -0.0872665, 0.34906596));
+    const quat = Quat.fromMat4(mat);
+
+    try testing.expect(mat.toEulerAngles().eqlApprox(quat.toEulerAngles(), 0.00001));
 }
 
 test "dot" {
