@@ -1,6 +1,6 @@
-const GenericVector = @import("vector.zig").GenericVector;
-const GenericMatrix = @import("matrix.zig").GenericMatrix;
-const GenericQuat = @import("quat.zig").GenericQuat;
+pub const GenericVector = @import("vector.zig").GenericVector;
+pub const GenericMatrix = @import("matrix.zig").GenericMatrix;
+pub const GenericQuat = @import("quat.zig").GenericQuat;
 
 pub const Vec2 = GenericVector(2, f32);
 pub const Vec3 = GenericVector(3, f32);
