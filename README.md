@@ -1,7 +1,7 @@
-# Work In Progress Matrix Library For Zig
+# Linear Algebra Library For Zig
 
 ## Introduction
-This is a work in progress matrix library for Zig. It aims to provide implementations of common matrix and vector operations. At its current stage, it offers support for the following types:
+This is a linear algebra library for Zig aimed towards computer graphics and game development. It provides implementation for common vector, matrix and quaternion operations. At its current stage, it offers support for the following types:
 - `Vec2`
 - `Vec3`
 - `Vec4`
@@ -69,6 +69,5 @@ const matrix = @import("zig_matrix");
 
 const a = matrix.vec2(1, 2);
 const b = a.swizzle("xyx");  // b: vec3(1, 2, 1)
-
 const c = a.swizzle("yyxx"); // c: vec4(2, 2, 1, 1)
 ```
