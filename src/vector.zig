@@ -63,6 +63,31 @@ pub fn GenericVector(comptime dim_i: comptime_int, comptime Scalar: type) type {
 
                     return .{ .elements = (tmp0 * tmp1) - (tmp2 * tmp3) };
                 }
+
+                pub inline fn toEculidean(self: Self) Self {
+                    const vx = self.elements[2] * @sin(self.elements[0]) * @cos(self.elements[1]);
+                    const vy = self.elements[2] * @sin(self.elements[0]) * @sin(self.elements[1]);
+                    const vz = self.elements[2] * @cos(self.elements[0]);
+
+                    return .{ .elements = .{ vx, vy, vz } };
+                }
+
+                pub inline fn toEculideanDir(self: Self) Self {
+                    const vx = @sin(self.elements[0]) * @cos(self.elements[1]);
+                    const vy = @sin(self.elements[0]) * @sin(self.elements[1]);
+                    const vz = @cos(self.elements[0]);
+
+                    return .{ .elements = .{ vx, vy, vz } };
+                }
+
+                // x - angle in xy plane, y - angle around z-axis, r - radius
+                pub inline fn toPolar(self: Self) Self {
+                    const l = self.len();
+                    const azimuth = std.math.acos(self.elements[2] / l);
+                    const polar = std.math.atan2(self.elements[1], self.elements[0]);
+
+                    return .{ .elements = .{ azimuth, polar, l } };
+                }
             },
             4 => struct {
                 pub inline fn init(xv: Scalar, yv: Scalar, zv: Scalar, sw: Scalar) Self {
@@ -183,7 +208,7 @@ pub fn GenericVector(comptime dim_i: comptime_int, comptime Scalar: type) type {
             return Self.sqrLen(a.sub(b));
         }
 
-        pub inline fn dist(a: Self, b: Self) Self {
+        pub inline fn dist(a: Self, b: Self) Scalar {
             return Self.len(a.sub(b));
         }
 
@@ -492,4 +517,18 @@ test "isNan isInf" {
 
     try testing.expect(a.isInf());
     try testing.expect(b.isNan());
+}
+
+test "toEculidean" {
+    const Vec3 = GenericVector(3, f32);
+    const a = Vec3.init(1.570, 0.295, 5);
+
+    try testing.expectEqual(Vec3.init(4.7840095, 1.4536988, 0.0039813714), a.toEculidean());
+}
+
+test "toPolar" {
+    const Vec3 = GenericVector(3, f32);
+    const a = Vec3.init(4.7840095, 1.4536988, 0.0039813714);
+
+    try testing.expectEqual(Vec3.init(1.570, 0.295, 5), a.toPolar());
 }
