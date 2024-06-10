@@ -80,7 +80,7 @@ pub fn GenericVector(comptime dim_i: comptime_int, comptime Scalar: type) type {
                     return .{ .elements = .{ vx, vy, vz } };
                 }
 
-                // x - angle in xy plane, y - angle around z-axis, r - radius
+                // x - latitude, y - longitude, r - radius
                 pub inline fn toPolar(self: Self) Self {
                     const l = self.len();
                     const azimuth = std.math.acos(self.elements[2] / l);
