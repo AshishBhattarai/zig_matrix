@@ -2,7 +2,7 @@ const std = @import("std");
 const testing = std.testing;
 const GenericVector = @import("vector.zig").GenericVector;
 
-/// Provides column-major 2x2, 3x3 and 4x4 matrix implementation with some learn algerba capabilities
+/// Provides column-major 2x2, 3x3 and 4x4 matrix implementation with some learn algebra capabilities
 pub fn GenericMatrix(comptime dim_col_i: comptime_int, comptime dim_row_i: comptime_int, comptime Scalar: type) type {
     const Vec3 = GenericVector(3, Scalar);
     const Vec2 = GenericVector(2, Scalar);
@@ -130,6 +130,14 @@ pub fn GenericMatrix(comptime dim_col_i: comptime_int, comptime dim_row_i: compt
                     inv.elements[2] = inv.elements[2].mul(inv_det);
 
                     return inv;
+                }
+
+                pub inline fn outer(a: Vec3, b: Vec3) Self {
+                    return .{ .elements = .{
+                        a.mul(b.swizzle("xxx")),
+                        a.mul(b.swizzle("yyy")),
+                        a.mul(b.swizzle("zzz")),
+                    } };
                 }
 
                 /// Compute 3x3 column-major homogeneous 2D transformation matrix
@@ -965,4 +973,17 @@ test "inverse" {
             Vec4.init(-4.925373e-1, 1.1442786e-1, 5.4726366e-2, 1.9402985e-1),
         ), a);
     }
+}
+
+test "outer" {
+    const Vec3 = GenericVector(3, f32);
+    const Mat3x3 = GenericMatrix(3, 3, f32);
+    const a = Vec3.init(1.0, 2.0, 3.0);
+    const b = Vec3.init(4.0, 5.0, 7.0);
+
+    try std.testing.expectEqual(Mat3x3.outer(a, b), Mat3x3.init(
+        Vec3.init(4e0, 8e0, 1.2e1),
+        Vec3.init(5e0, 1e1, 1.5e1),
+        Vec3.init(7e0, 1.4e1, 2.1e1),
+    ));
 }
