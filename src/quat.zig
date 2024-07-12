@@ -51,7 +51,7 @@ pub fn GenericQuat(comptime Scalar: type) type {
         }
 
         // pure * quat
-        pub inline fn mulP(vec: Vec3, quat: Self) Self {
+        pub inline fn mulP(quat: Self, vec: Vec3) Self {
             const xv = splat(vec.elements[0]) * @shuffle(Scalar, quat.elements, -quat.elements, [4]i32{ 3, -3, 1, -1 });
             const yv = splat(vec.elements[1]) * @shuffle(Scalar, quat.elements, -quat.elements, [4]i32{ 2, 3, -1, -2 });
             const zv = splat(vec.elements[2]) * @shuffle(Scalar, quat.elements, -quat.elements, [4]i32{ -2, 0, 3, -3 });
