@@ -32,6 +32,13 @@ pub fn GenericMatrix(comptime dim_col_i: comptime_int, comptime dim_row_i: compt
                     } };
                 }
 
+                pub inline fn diagonal(vec: ColVec) Self {
+                    return .{ .elements = .{
+                        RowVec.init(vec.x(), 0),
+                        RowVec.init(0, vec.y()),
+                    } };
+                }
+
                 /// Initialize 2x2 column-major matrix from array slice
                 pub inline fn fromSlice(data: *const [dim]Scalar) Self {
                     return .{ .elements = .{
@@ -71,6 +78,14 @@ pub fn GenericMatrix(comptime dim_col_i: comptime_int, comptime dim_row_i: compt
                         RowVec.init(1, 0, 0),
                         RowVec.init(0, 1, 0),
                         RowVec.init(0, 0, 1),
+                    } };
+                }
+
+                pub inline fn diagonal(vec: ColVec) Self {
+                    return .{ .elements = .{
+                        RowVec.init(vec.x(), 0, 0),
+                        RowVec.init(0, vec.y(), 0),
+                        RowVec.init(0, 0, vec.z()),
                     } };
                 }
 
@@ -227,6 +242,15 @@ pub fn GenericMatrix(comptime dim_col_i: comptime_int, comptime dim_row_i: compt
                     } };
                 }
 
+                pub inline fn diagonal(vec: ColVec) Self {
+                    return .{ .elements = .{
+                        RowVec.init(vec.x(), 0, 0, 0),
+                        RowVec.init(0, vec.y(), 0, 0),
+                        RowVec.init(0, 0, vec.z(), 0),
+                        RowVec.init(0, 0, 0, vec.w()),
+                    } };
+                }
+
                 /// Initialize 4x4 column-major matrix 3x3 matrix, r3 row vector
                 pub inline fn fromMat3(mat3: GenericMatrix(3, 3, Scalar), r3: RowVec) Self {
                     return Self.init(
@@ -290,8 +314,8 @@ pub fn GenericMatrix(comptime dim_col_i: comptime_int, comptime dim_row_i: compt
                     const subTemp1 = sub0.shuffle(sub1, [_]i32{ 2, -1, -2, -2 });
                     const m6 = subTemp1.mul(self.elements[1].swizzle("wwwz"));
 
-                    const add = subRes2.add(m6);
-                    const det = add.mul(RowVec.init(1.0, -1.0, 1.0, -1.0));
+                    const addRes = subRes2.add(m6);
+                    const det = addRes.mul(RowVec.init(1.0, -1.0, 1.0, -1.0));
 
                     return self.elements[0].dot(det);
                 }
@@ -642,6 +666,46 @@ pub fn GenericMatrix(comptime dim_col_i: comptime_int, comptime dim_row_i: compt
             return result;
         }
 
+        pub inline fn add(a: Self, b: Self) Self {
+            var result: Self = undefined;
+            inline for (0..dim_col) |i| {
+                result.elements[i] = a.elements[i].add(b.elements[i]);
+            }
+            return result;
+        }
+
+        pub inline fn sub(a: Self, b: Self) Self {
+            var result: Self = undefined;
+            inline for (0..dim_col) |i| {
+                result.elements[i] = a.elements[i].sub(b.elements[i]);
+            }
+            return result;
+        }
+
+        pub inline fn mulScalar(a: Self, v: Scalar) Self {
+            var result: Self = undefined;
+            inline for (0..dim_col) |i| {
+                result.elements[i] = a.elements[i].mulScalar(v);
+            }
+            return result;
+        }
+
+        pub inline fn addScalar(a: Self, v: Scalar) Self {
+            var result: Self = undefined;
+            inline for (0..dim_col) |i| {
+                result.elements[i] = a.elements[i].addScalar(v);
+            }
+            return result;
+        }
+
+        pub inline fn subScalar(a: Self, v: Scalar) Self {
+            var result: Self = undefined;
+            inline for (0..dim_col) |i| {
+                result.elements[i] = a.elements[i].subScalar(v);
+            }
+            return result;
+        }
+
         /// Fetch row vector from give column index
         pub inline fn col(self: Self, idx: u32) RowVec {
             return self.elements[idx];
@@ -810,6 +874,32 @@ test "setCol" {
     try testing.expectEqual(vec4(10, -5, 6, -2), a.col(0));
 }
 
+test "diagonal" {
+    {
+        const Mat4x4 = GenericMatrix(4, 4, f32);
+        const Vec4 = GenericVector(4, f32);
+
+        const a = Mat4x4.diagonal(Mat4x4.ColVec.init(1, 2, 3, 4));
+        try std.testing.expectEqual(Mat4x4.init(
+            Vec4.init(1, 0, 0, 0),
+            Vec4.init(0, 2, 0, 0),
+            Vec4.init(0, 0, 3, 0),
+            Vec4.init(0, 0, 0, 4),
+        ), a);
+    }
+    {
+        const Mat3x3 = GenericMatrix(3, 3, f32);
+        const Vec3 = GenericVector(3, f32);
+
+        const a = Mat3x3.diagonal(Mat3x3.ColVec.init(1, 2, 3));
+        try std.testing.expectEqual(Mat3x3.init(
+            Vec3.init(1, 0, 0),
+            Vec3.init(0, 2, 0),
+            Vec3.init(0, 0, 3),
+        ), a);
+    }
+}
+
 test "mul" {
     const Mat4x4 = GenericMatrix(4, 4, f32);
     const Vec4 = GenericVector(4, f32);
@@ -850,6 +940,113 @@ test "mul" {
 
         try testing.expectEqual(Vec4.init(-442, 180, 352, 956), Mat4x4.mul(a, b));
     }
+}
+
+test "add" {
+    const Mat4x4 = GenericMatrix(4, 4, f32);
+    const Vec4 = GenericVector(4, f32);
+
+    const a = Mat4x4.init(
+        Vec4.init(0, 1, 2, 3),
+        Vec4.init(4, 5, 6, 7),
+        Vec4.init(8, 9, 10, 11),
+        Vec4.init(12, 13, 14, 15),
+    );
+    const b = Mat4x4.init(
+        Vec4.init(0, 1, 2, 3),
+        Vec4.init(4, 5, 6, 7),
+        Vec4.init(8, 9, 10, 11),
+        Vec4.init(12, 13, 14, 15),
+    );
+
+    try testing.expectEqual(a.add(b), Mat4x4.init(
+        Vec4.init(0, 2, 4, 6),
+        Vec4.init(8, 10, 12, 14),
+        Vec4.init(16, 18, 20, 22),
+        Vec4.init(24, 26, 28, 30),
+    ));
+}
+
+test "sub" {
+    const Mat4x4 = GenericMatrix(4, 4, f32);
+    const Vec4 = GenericVector(4, f32);
+
+    const a = Mat4x4.init(
+        Vec4.init(0, 1, 2, 3),
+        Vec4.init(4, 5, 6, 7),
+        Vec4.init(8, 9, 10, 11),
+        Vec4.init(12, 13, 14, 15),
+    );
+    const b = Mat4x4.init(
+        Vec4.init(0, 1, 2, 3),
+        Vec4.init(4, 5, 6, 7),
+        Vec4.init(8, 9, 10, 11),
+        Vec4.init(12, 13, 14, 15),
+    );
+
+    try testing.expectEqual(a.sub(b), Mat4x4.init(
+        Vec4.init(0, 0, 0, 0),
+        Vec4.init(0, 0, 0, 0),
+        Vec4.init(0, 0, 0, 0),
+        Vec4.init(0, 0, 0, 0),
+    ));
+}
+
+test "mulScalar" {
+    const Mat4x4 = GenericMatrix(4, 4, f32);
+    const Vec4 = GenericVector(4, f32);
+
+    const a = Mat4x4.init(
+        Vec4.init(0, 1, 2, 3),
+        Vec4.init(4, 5, 6, 7),
+        Vec4.init(8, 9, 10, 11),
+        Vec4.init(12, 13, 14, 15),
+    );
+
+    try testing.expectEqual(a.mulScalar(2), Mat4x4.init(
+        Vec4.init(0, 2, 4, 6),
+        Vec4.init(8, 10, 12, 14),
+        Vec4.init(16, 18, 20, 22),
+        Vec4.init(24, 26, 28, 30),
+    ));
+}
+
+test "addScalar" {
+    const Mat4x4 = GenericMatrix(4, 4, f32);
+    const Vec4 = GenericVector(4, f32);
+
+    const a = Mat4x4.init(
+        Vec4.init(0, 1, 2, 3),
+        Vec4.init(4, 5, 6, 7),
+        Vec4.init(8, 9, 10, 11),
+        Vec4.init(12, 13, 14, 15),
+    );
+
+    try testing.expectEqual(a.addScalar(2), Mat4x4.init(
+        Vec4.init(2, 3, 4, 5),
+        Vec4.init(6, 7, 8, 9),
+        Vec4.init(10, 11, 12, 13),
+        Vec4.init(14, 15, 16, 17),
+    ));
+}
+
+test "subScalar" {
+    const Mat4x4 = GenericMatrix(4, 4, f32);
+    const Vec4 = GenericVector(4, f32);
+
+    const a = Mat4x4.init(
+        Vec4.init(0, 1, 2, 3),
+        Vec4.init(4, 5, 6, 7),
+        Vec4.init(8, 9, 10, 11),
+        Vec4.init(12, 13, 14, 15),
+    );
+
+    try testing.expectEqual(a.subScalar(2), Mat4x4.init(
+        Vec4.init(-2, -1, 0, 1),
+        Vec4.init(2, 3, 4, 5),
+        Vec4.init(6, 7, 8, 9),
+        Vec4.init(10, 11, 12, 13),
+    ));
 }
 
 test "extractRotation" {
