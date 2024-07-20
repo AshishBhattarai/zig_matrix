@@ -170,31 +170,27 @@ pub fn GenericVector(comptime dim_i: comptime_int, comptime Scalar: type) type {
         }
 
         pub inline fn eqlApprox(a: Self, b: Self, tolerance: Scalar) bool {
-            var ret = true;
-            inline for (0..dim) |i| {
-                ret = ret and (@abs(a.elements[i] - b.elements[i]) <= tolerance);
-            }
-            return ret;
+            return @reduce(.And, @abs(a.elements - b.elements) <= @as(@Vector(dim, Scalar), @splat(tolerance)));
         }
 
         // a < b ?
         pub inline fn lt(a: Self, b: Self) bool {
-            return a.elements < b.elements;
+            return @reduce(.And, a.elements < b.elements);
         }
 
         // a <= b ?
         pub inline fn lte(a: Self, b: Self) bool {
-            return a.elements <= b.elements;
+            return @reduce(.And, a.elements <= b.elements);
         }
 
         // a > b ?
         pub inline fn gt(a: Self, b: Self) bool {
-            return a.elements > b.elements;
+            return @reduce(.And, a.elements > b.elements);
         }
 
         // a >= b ?
         pub inline fn gte(a: Self, b: Self) bool {
-            return a.elements >= b.elements;
+            return @reduce(.And, a.elements >= b.elements);
         }
 
         // vector operations
@@ -213,11 +209,11 @@ pub fn GenericVector(comptime dim_i: comptime_int, comptime Scalar: type) type {
         }
 
         pub inline fn min(a: Self, b: Self) Self {
-            return @min(a.elements, b.elements);
+            return .{ .elements = @min(a.elements, b.elements) };
         }
 
         pub inline fn max(a: Self, b: Self) Self {
-            return @max(a.elements, b.elements);
+            return .{ .elements = @max(a.elements, b.elements) };
         }
 
         // a * (1 -t) + bt
