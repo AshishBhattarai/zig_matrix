@@ -61,7 +61,7 @@ pub fn GenericQuat(comptime Scalar: type) type {
         // assumes the quaternion is unit
         // https://blog.molecular-matters.com/2013/05/24/a-faster-quaternion-vector-multiplication/
         pub inline fn rotate(self: Self, vec: Vec3) Vec3 {
-            const qvec = self.getVec();
+            const qvec = self.toVec();
             const t = qvec.cross(vec).mulScalar(2.0);
             const qw: Vec3 = .{ .elements = @shuffle(Scalar, self.elements, undefined, [3]i32{ 3, 3, 3 }) };
             return vec.add(t.mul(qw)).add(qvec.cross(t));
@@ -202,7 +202,7 @@ pub fn GenericQuat(comptime Scalar: type) type {
             return .{ .elements = [4]Scalar{ vec.elements[0], vec.elements[1], vec.elements[2], wv } };
         }
 
-        pub inline fn getVec(self: Self) Vec3 {
+        pub inline fn toVec(self: Self) Vec3 {
             return .{ .elements = [3]Scalar{ self.elements[0], self.elements[1], self.elements[2] } };
         }
 
@@ -279,7 +279,7 @@ pub fn GenericQuat(comptime Scalar: type) type {
         // assmues unit quaternions
         pub inline fn angle(a: Self, b: Self) Scalar {
             const cos_theta = a.dot(b);
-            return std.math.ascos(2 * cos_theta * cos_theta - 1);
+            return std.math.acos(2 * cos_theta * cos_theta - 1);
         }
 
         pub inline fn negate(self: Self) Self {
