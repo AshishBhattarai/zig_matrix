@@ -246,6 +246,10 @@ pub fn GenericVector(comptime dim_i: comptime_int, comptime Scalar: type) type {
             return .{ .elements = @sin(self.elements) };
         }
 
+        pub inline fn abs(self: Self) Self {
+            return .{ .elements = @abs(self.elements) };
+        }
+
         // utilities
 
         pub inline fn shuffle(a: Self, b: Self, mask: @Vector(dim, i32)) Self {
