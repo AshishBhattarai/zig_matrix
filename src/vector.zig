@@ -250,6 +250,18 @@ pub fn GenericVector(comptime dim_i: comptime_int, comptime Scalar: type) type {
             return .{ .elements = @abs(self.elements) };
         }
 
+        pub inline fn sign(self: Self) Self {
+            const zero: Elements = @splat(0.0);
+
+            const pos: Elements = @splat(1.0);
+            const neg: Elements = @splat(-1.0);
+
+            const pos_sign: Elements = @select(Scalar, self.elements > zero, pos, zero);
+            const neg_sign: Elements = @select(Scalar, self.elements < zero, neg, zero);
+
+            return .{ .elements = pos_sign + neg_sign };
+        }
+
         // utilities
 
         pub inline fn shuffle(a: Self, b: Self, mask: @Vector(dim, i32)) Self {
@@ -531,4 +543,12 @@ test "toPolar" {
     const a = Vec3.init(4.7840095, 1.4536988, 0.0039813714);
 
     try testing.expectEqual(Vec3.init(1.570, 0.295, 5), a.toPolar());
+}
+
+test "sign" {
+    const Vec3 = GenericVector(3, f32);
+    const a = Vec3.init(-20.0, 0, 6.88);
+    const sign = a.sign();
+
+    try testing.expectEqual(Vec3.init(std.math.sign(a.x()), std.math.sign(a.y()), std.math.sign(a.z())), sign);
 }
