@@ -252,7 +252,6 @@ pub fn GenericVector(comptime dim_i: comptime_int, comptime Scalar: type) type {
 
         pub inline fn sign(self: Self) Self {
             const zero: Elements = @splat(0.0);
-
             const pos: Elements = @splat(1.0);
             const neg: Elements = @splat(-1.0);
 
@@ -260,6 +259,15 @@ pub fn GenericVector(comptime dim_i: comptime_int, comptime Scalar: type) type {
             const neg_sign: Elements = @select(Scalar, self.elements < zero, neg, zero);
 
             return .{ .elements = pos_sign + neg_sign };
+        }
+
+        // sign that doesn't return zero
+        pub inline fn signnz(self: Self) Self {
+            const zero: Elements = @splat(0.0);
+            const pos: Elements = @splat(1.0);
+            const neg: Elements = @splat(-1.0);
+
+            return .{ .elements = @select(Scalar, self.elements < zero, neg, pos) };
         }
 
         // utilities
@@ -551,4 +559,12 @@ test "sign" {
     const sign = a.sign();
 
     try testing.expectEqual(Vec3.init(std.math.sign(a.x()), std.math.sign(a.y()), std.math.sign(a.z())), sign);
+}
+
+test "signnz" {
+    const Vec3 = GenericVector(3, f32);
+    const a = Vec3.init(-20.0, 0, 6.88);
+    const sign = a.signnz();
+
+    try testing.expectEqual(Vec3.init(std.math.sign(a.x()), 1.0, std.math.sign(a.z())), sign);
 }
