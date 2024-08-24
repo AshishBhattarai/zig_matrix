@@ -216,6 +216,26 @@ pub fn GenericVector(comptime dim_i: comptime_int, comptime Scalar: type) type {
             return .{ .elements = @max(a.elements, b.elements) };
         }
 
+        pub inline fn minElem(a: Self) Scalar {
+            return a.min(a.swizzle("yzx")).min(a.swizzle("zxy")).elements[0];
+        }
+
+        pub inline fn minElemIdx(a: Self) u8 {
+            const min_elems = a.min(a.swizzle("yzx")).min(a.swizzle("zxy")).elements;
+            const mask: u3 = @bitCast(a.elements == min_elems);
+            return @ctz(mask);
+        }
+
+        pub inline fn maxElem(a: Self) Scalar {
+            return a.max(a.swizzle("yzx")).max(a.swizzle("zxy")).elements[0];
+        }
+
+        pub inline fn maxElemIdx(a: Self) u8 {
+            const max_elems = a.max(a.swizzle("yzx")).max(a.swizzle("zxy")).elements;
+            const mask: u3 = @bitCast(a.elements == max_elems);
+            return @ctz(mask);
+        }
+
         // a * (1 -t) + bt
         pub inline fn lerp(a: Self, b: Self, t: Scalar) Self {
             return .{ .elements = a.elements + splat(t).elements * (b.elements - a.elements) };
@@ -567,4 +587,26 @@ test "signnz" {
     const sign = a.signnz();
 
     try testing.expectEqual(Vec3.init(std.math.sign(a.x()), 1.0, std.math.sign(a.z())), sign);
+}
+
+test "minElem" {
+    const Vec3 = GenericVector(3, f32);
+    const a = Vec3.init(20.0, 0, -6.88);
+
+    const min = a.minElem();
+    const min_idx = a.minElemIdx();
+
+    try testing.expectEqual(-6.88, min);
+    try testing.expectEqual(2, min_idx);
+}
+
+test "maxElem" {
+    const Vec3 = GenericVector(3, f32);
+    const a = Vec3.init(20.0, 0, -6.88);
+
+    const max = a.maxElem();
+    const max_idx = a.maxElemIdx();
+
+    try testing.expectEqual(20.0, max);
+    try testing.expectEqual(0, max_idx);
 }
