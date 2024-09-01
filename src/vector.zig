@@ -32,10 +32,14 @@ pub fn GenericVector(comptime dim_i: comptime_int, comptime Scalar: type) type {
                 pub inline fn rotate(self: Self, ang: Scalar) Self {
                     const sin_angle = @sin(ang);
                     const cos_angle = @cos(ang);
-                    return .{ .elements = [2]Scalar{
+                    return .{ .elements = .{
                         cos_angle * self.x() - sin_angle * self.y(),
                         sin_angle * self.x() + cos_angle * self.y(),
                     } };
+                }
+
+                pub inline fn orthogonal(self: Self) Self {
+                    return .{ .elements = .{ -self.elements[1], self.elements[0] } };
                 }
             },
             3 => struct {
@@ -87,6 +91,14 @@ pub fn GenericVector(comptime dim_i: comptime_int, comptime Scalar: type) type {
                     const polar = std.math.atan2(self.elements[1], self.elements[0]);
 
                     return .{ .elements = .{ azimuth, polar, l } };
+                }
+
+                const sqrt_inv_3 = @sqrt(1.0 / 3.0);
+                // expects normalized input
+                pub inline fn orthogonal(self: Self) Self {
+                    const cond = @abs(self.swizzle("xxx").elements) >= Self.splat(sqrt_inv_3).elements;
+                    const tmp0 = Self.select(Self.init(self.y(), -self.x(), 0.0), Self.init(0.0, self.z(), -self.y()), cond);
+                    return tmp0.norm();
                 }
             },
             4 => struct {
@@ -294,6 +306,10 @@ pub fn GenericVector(comptime dim_i: comptime_int, comptime Scalar: type) type {
 
         pub inline fn shuffle(a: Self, b: Self, mask: @Vector(dim, i32)) Self {
             return .{ .elements = @shuffle(Scalar, a.elements, b.elements, mask) };
+        }
+
+        pub inline fn select(a: Self, b: Self, pred: @Vector(dim, bool)) Self {
+            return .{ .elements = @select(Scalar, pred, a.elements, b.elements) };
         }
 
         pub inline fn splat(scalar: Scalar) Self {
@@ -609,4 +625,17 @@ test "maxElem" {
 
     try testing.expectEqual(20.0, max);
     try testing.expectEqual(0, max_idx);
+}
+
+test "orthogonal" {
+    const Vec2 = GenericVector(2, f32);
+    const Vec3 = GenericVector(3, f32);
+    {
+        const a = Vec2.init(9, 10);
+        try testing.expectEqual(a.rotate(std.math.pi * 0.5), a.orthogonal());
+    }
+    {
+        const a = Vec3.init(9, 10, 11).norm();
+        try testing.expectEqual(Vec3.init(0e0, 7.399401e-1, -6.726728e-1), a.orthogonal());
+    }
 }
