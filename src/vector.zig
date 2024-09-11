@@ -169,6 +169,11 @@ pub fn GenericVector(comptime dim_i: comptime_int, comptime Scalar: type) type {
             return @reduce(.Add, a.elements * b.elements);
         }
 
+        // normalized dot product
+        pub inline fn normDot(a: Self, b: Self) Scalar {
+            return a.dot(b) / @sqrt(a.dot(a) * b.dot(b));
+        }
+
         pub inline fn sqrLen(a: Self) Scalar {
             return @reduce(.Add, a.elements * a.elements);
         }
@@ -261,13 +266,16 @@ pub fn GenericVector(comptime dim_i: comptime_int, comptime Scalar: type) type {
             return self.mulScalar(-1.0);
         }
 
+        // atan2(a.b, axb) for more stable angle near 0 ?
+
         // assumes unit vectors
         pub inline fn angle(a: Self, b: Self) Scalar {
             return std.math.acos(a.dot(b));
         }
 
-        pub inline fn nAngle(a: Self, b: Self) Scalar {
-            return std.math.acos((a.norm().dot(b.norm())));
+        // normalize and compute angle
+        pub inline fn normAngle(a: Self, b: Self) Scalar {
+            return std.math.acos(a.normDot(b));
         }
 
         pub inline fn cos(self: Self) Self {
@@ -522,6 +530,30 @@ test "dot" {
         const a = Vec4.init(4.61, 2.41, 1, 1.22);
         const b = Vec4.init(2.42, 9.4, 1.78, 3.66);
         try testing.expectEqual(4.0055397e1, Vec4.dot(a, b));
+    }
+}
+
+test "normDot" {
+    const Vec4 = GenericVector(4, f32);
+    {
+        const a = Vec4.init(4.61, 2.41, 1, 1.22);
+        const b = Vec4.init(2.42, 9.4, 1.78, 3.66);
+        try testing.expectEqual(7.001017e-1, Vec4.normDot(a, b));
+    }
+    {
+        const a = Vec4.init(4.61, 2.41, 1, 1.22).norm();
+        const b = Vec4.init(2.42, 9.4, 1.78, 3.66).norm();
+        try testing.expectEqual(7.001018e-1, Vec4.dot(a, b));
+    }
+}
+
+test "normAngle" {
+    const Vec4 = GenericVector(4, f32);
+    {
+        const a = Vec4.init(4.61, 2.41, 1, 1.22);
+        const b = Vec4.init(2.42, 9.4, 1.78, 3.66);
+        try testing.expectEqual(7.9525626e-1, Vec4.angle(a.norm(), b.norm()));
+        try testing.expectEqual(7.9525644e-1, Vec4.normAngle(a, b));
     }
 }
 
