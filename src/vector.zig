@@ -217,7 +217,7 @@ pub fn GenericVector(comptime dim_i: comptime_int, comptime Scalar: type) type {
             return if (length != 0) self.divScalar(length) else self;
         }
 
-        pub inline fn sqrDist(a: Self, b: Self) Self {
+        pub inline fn sqrDist(a: Self, b: Self) Scalar {
             return Self.sqrLen(a.sub(b));
         }
 
