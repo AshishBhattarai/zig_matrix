@@ -2,7 +2,7 @@ const std = @import("std");
 const testing = std.testing;
 
 pub fn GenericVector(comptime dim_i: comptime_int, comptime Scalar: type) type {
-    if (@typeInfo(Scalar) != .Float and @typeInfo(Scalar) != .Int) {
+    if (@typeInfo(Scalar) != .float and @typeInfo(Scalar) != .int) {
         @compileError("Vectors cannot be of type " ++ @typeName(Scalar));
     }
 
