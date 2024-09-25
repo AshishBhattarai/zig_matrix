@@ -171,6 +171,15 @@ pub fn GenericVector(comptime dim_i: comptime_int, comptime Scalar: type) type {
 
         // normalized dot product
         pub inline fn normDot(a: Self, b: Self) Scalar {
+            const adota = a.dot(a);
+            const bdotb = a.dot(b);
+            const adotb = a.dot(b);
+            const is_zero = adota == 0 or bdotb == 0;
+            const ret = adotb / @sqrt(a.dot(a) * b.dot(b));
+            return if (is_zero) 0 else ret;
+        }
+
+        pub inline fn normDotUc(a: Self, b: Self) Scalar {
             return a.dot(b) / @sqrt(a.dot(a) * b.dot(b));
         }
 
@@ -184,6 +193,10 @@ pub fn GenericVector(comptime dim_i: comptime_int, comptime Scalar: type) type {
 
         pub inline fn eql(a: Self, b: Self) bool {
             return @reduce(.And, a.elements == b.elements);
+        }
+
+        pub inline fn neql(a: Self, b: Self) bool {
+            return @reduce(.And, a.elements != b.elements);
         }
 
         pub inline fn eqlApprox(a: Self, b: Self, tolerance: Scalar) bool {
@@ -214,7 +227,16 @@ pub fn GenericVector(comptime dim_i: comptime_int, comptime Scalar: type) type {
 
         pub inline fn norm(self: Self) Self {
             const length = self.len();
-            return if (length != 0) self.divScalar(length) else self;
+            const normalized = self.divScalar(length);
+            const pred: @Vector(dim, bool) = @splat(length < std.math.floatEps(Scalar));
+            const zero: @Vector(dim, Scalar) = @splat(0);
+            return .{ .elements = @select(Scalar, pred, zero, normalized.elements) };
+        }
+
+        // unchecked norm
+        pub inline fn normUc(self: Self) Self {
+            const length = self.len();
+            return self.divScalar(length);
         }
 
         pub inline fn sqrDist(a: Self, b: Self) Scalar {
@@ -276,6 +298,10 @@ pub fn GenericVector(comptime dim_i: comptime_int, comptime Scalar: type) type {
         // normalize and compute angle
         pub inline fn normAngle(a: Self, b: Self) Scalar {
             return std.math.acos(a.normDot(b));
+        }
+
+        pub inline fn normAngleUc(a: Self, b: Self) Scalar {
+            return std.math.acos(a.normDotUc(b));
         }
 
         pub inline fn cos(self: Self) Self {
@@ -545,6 +571,31 @@ test "normDot" {
         const b = Vec4.init(2.42, 9.4, 1.78, 3.66).norm();
         try testing.expectEqual(7.001018e-1, Vec4.dot(a, b));
     }
+    {
+        const a = Vec4.init(4.61, 2.41, 1, 1.22);
+        const b = Vec4.init(0, 0, 0, 0);
+        try testing.expectEqual(0, Vec4.normDot(a, b));
+    }
+}
+
+test "normDotUc" {
+    const Vec4 = GenericVector(4, f32);
+    {
+        const a = Vec4.init(4.61, 2.41, 1, 1.22);
+        const b = Vec4.init(2.42, 9.4, 1.78, 3.66);
+        try testing.expectEqual(7.001017e-1, Vec4.normDotUc(a, b));
+    }
+    {
+        const a = Vec4.init(4.61, 2.41, 1, 1.22).norm();
+        const b = Vec4.init(2.42, 9.4, 1.78, 3.66).norm();
+        try testing.expectEqual(7.001018e-1, Vec4.dot(a, b));
+    }
+    {
+        const a = Vec4.init(4.61, 2.41, 1, 1.22);
+        const b = Vec4.init(0, 0, 0, 0);
+        try testing.expectEqual(false, Vec4.normDotUc(a, b) >= 0); // results in nan
+        try testing.expectEqual(false, Vec4.normDotUc(a, b) <= 0);
+    }
 }
 
 test "normAngle" {
@@ -584,6 +635,26 @@ test "norm" {
         const Vec3 = GenericVector(3, f32);
         const a = Vec3.init(5, 7, 10);
         try testing.expectEqual(Vec3.init(3.7904903e-1, 5.306686e-1, 7.5809807e-1), a.norm());
+    }
+    {
+        const Vec3 = GenericVector(3, f32);
+        const a = Vec3.init(0, 0, 0);
+        try testing.expectEqual(Vec3.splat(0), a.norm());
+    }
+}
+
+test "normUc" {
+    // vec3
+    {
+        const Vec3 = GenericVector(3, f32);
+        const a = Vec3.init(5, 7, 10);
+        try testing.expectEqual(Vec3.init(3.7904903e-1, 5.306686e-1, 7.5809807e-1), a.normUc());
+    }
+    {
+        const Vec3 = GenericVector(3, f32);
+        const a = Vec3.init(0, 0, 0);
+        try testing.expectEqual(false, a.normUc().gte(Vec3.splat(0))); // nan
+        try testing.expectEqual(false, a.normUc().lte(Vec3.splat(0)));
     }
 }
 
