@@ -615,6 +615,20 @@ pub fn GenericMatrix(comptime dim_col_i: comptime_int, comptime dim_row_i: compt
                     } };
                 }
 
+                pub inline fn invPerspectiveY(fov: Scalar, aspect_ratio: Scalar, near: Scalar, far: Scalar) Self {
+                    const tangent = @tan(fov * 0.5);
+                    const focal_length = 1 / tangent;
+                    const A = near / (far - near);
+                    const B = far * A;
+
+                    return .{ .elements = .{
+                        RowVec.init(aspect_ratio / focal_length, 0, 0, 0),
+                        RowVec.init(0, -1.0 / focal_length, 0, 0),
+                        RowVec.init(0, 0, 0.0, 1.0 / B),
+                        RowVec.init(0, 0, -1.0, A / B),
+                    } };
+                }
+
                 /// perspective projection to NDC x=[-1, +1], y = [-1, +1] and z = [0, +1] with horizontal FOV and ReversedZ
                 pub inline fn perspectiveX(fov: Scalar, aspect_ratio: Scalar, near: Scalar, far: Scalar) Self {
                     const tangent = @tan(fov * 0.5);
@@ -626,6 +640,20 @@ pub fn GenericMatrix(comptime dim_col_i: comptime_int, comptime dim_row_i: compt
                         RowVec.init(0, -focal_length * aspect_ratio, 0, 0),
                         RowVec.init(0, 0, A, -1.0),
                         RowVec.init(0, 0, far * A, 0),
+                    } };
+                }
+
+                pub inline fn invPerspectiveX(fov: Scalar, aspect_ratio: Scalar, near: Scalar, far: Scalar) Self {
+                    const tangent = @tan(fov * 0.5);
+                    const focal_length = 1 / tangent;
+                    const A = near / (far - near);
+                    const B = far * A;
+
+                    return .{ .elements = .{
+                        RowVec.init(1.0 / focal_length, 0, 0, 0),
+                        RowVec.init(0, -1.0 / (focal_length * aspect_ratio), 0, 0),
+                        RowVec.init(0, 0, 0.0, 1.0 / B),
+                        RowVec.init(0, 0, -1.0, A / B),
                     } };
                 }
             },
@@ -1183,4 +1211,16 @@ test "outer" {
         Vec3.init(5e0, 1e1, 1.5e1),
         Vec3.init(7e0, 1.4e1, 2.1e1),
     ));
+}
+
+test "prespevitX" {
+    const Mat4x4 = GenericMatrix(4, 4, f32);
+    {
+        const proj = Mat4x4.perspectiveX(1.0, 1.0, 1.0, 10002.0);
+        try std.testing.expectEqual(proj.inverse(), Mat4x4.invPerspectiveX(1.0, 1.0, 1.0, 10002.0));
+    }
+    {
+        const proj = Mat4x4.perspectiveY(1.0, 1.0, 1.0, 10002.0);
+        try std.testing.expectEqual(proj.inverse(), Mat4x4.invPerspectiveY(1.0, 1.0, 1.0, 10002.0));
+    }
 }
