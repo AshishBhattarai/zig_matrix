@@ -207,7 +207,7 @@ pub fn GenericQuat(comptime Scalar: type) type {
         }
 
         pub inline fn lerp(a: Self, b: Self, t: Scalar) Self {
-            return .{ .element = a.elements + splat(t) * (b.elements - a.elements) };
+            return .{ .elements = a.elements + splat(t) * (b.elements - a.elements) };
         }
 
         // assumes a,b are unit quaternion
