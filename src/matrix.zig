@@ -339,7 +339,6 @@ pub fn GenericMatrix(comptime dim_col_i: comptime_int, comptime dim_row_i: compt
                     return inv;
                 }
 
-                // only works for uniform scale
                 pub inline fn inverseTrans(self: Self) Self {
                     var inv: Self = undefined;
 
@@ -350,7 +349,7 @@ pub fn GenericMatrix(comptime dim_col_i: comptime_int, comptime dim_row_i: compt
                     inv.elements[1] = t0.shuffle(self.elements[2], [4]i32{ 1, 3, -2, -4 });
                     inv.elements[2] = t1.shuffle(self.elements[2], [4]i32{ 0, 2, -3, -4 });
 
-                    // scale
+                    // sq scale from upper 3x3 mat (before transpose)
                     const scale2 = inv.elements[0].mul(inv.elements[0])
                         .add(inv.elements[1].mul(inv.elements[1]))
                         .add(inv.elements[2].mul(inv.elements[2]))
@@ -564,6 +563,37 @@ pub fn GenericMatrix(comptime dim_col_i: comptime_int, comptime dim_row_i: compt
                     const col_a = self.elements[0].swizzle("xyz").norm();
                     const col_b = self.elements[1].swizzle("xyz").norm();
                     const col_c = self.elements[2].swizzle("xyz").norm();
+
+                    const theta_x = std.math.atan2(col_b.z(), col_c.z());
+                    const c2 = @sqrt(col_a.x() * col_a.x() + col_a.y() * col_a.y());
+                    const theta_y = std.math.atan2(-col_a.z(), c2);
+                    const s1 = @sin(theta_x);
+                    const c1 = @cos(theta_x);
+                    const theta_z = std.math.atan2(s1 * col_c.x() - c1 * col_b.x(), c1 * col_b.y() - s1 * col_c.y());
+
+                    return Vec3.init(theta_x, theta_y, theta_z);
+                }
+
+                pub inline fn getRotationUniformscale(self: Self) Vec3 {
+                    const len = self.elements[0].swizzle("xyz").len();
+                    const col_a = self.elements[0].swizzle("xyz").divScalar(len);
+                    const col_b = self.elements[1].swizzle("xyz").divScalar(len);
+                    const col_c = self.elements[2].swizzle("xyz").divScalar(len);
+
+                    const theta_x = std.math.atan2(col_b.z(), col_c.z());
+                    const c2 = @sqrt(col_a.x() * col_a.x() + col_a.y() * col_a.y());
+                    const theta_y = std.math.atan2(-col_a.z(), c2);
+                    const s1 = @sin(theta_x);
+                    const c1 = @cos(theta_x);
+                    const theta_z = std.math.atan2(s1 * col_c.x() - c1 * col_b.x(), c1 * col_b.y() - s1 * col_c.y());
+
+                    return Vec3.init(theta_x, theta_y, theta_z);
+                }
+
+                pub inline fn getRotationUnitScale(self: Self) Vec3 {
+                    const col_a = self.elements[0];
+                    const col_b = self.elements[1];
+                    const col_c = self.elements[2];
 
                     const theta_x = std.math.atan2(col_b.z(), col_c.z());
                     const c2 = @sqrt(col_a.x() * col_a.x() + col_a.y() * col_a.y());
@@ -1152,19 +1182,19 @@ test "inverse" {
 
         try std.testing.expect(a_inv.mul(vec).eqlApprox(a_vec, 0.00001));
     }
-    // inverse transformation no scale
+    // inverse transformation non-unform scale
     {
         const Mat4x4 = GenericMatrix(4, 4, f32);
         const Vec3 = GenericVector(3, f32);
         const Vec4 = GenericVector(4, f32);
 
-        const a = Mat4x4.transformation(Vec3.init(-8.9, -10.2, -11.4), Vec3.init(0.5, 1.5, 1.0), Vec3.init(12, 12, 12));
+        const a = Mat4x4.transformation(Vec3.init(-8.9, -10.2, -11.4), Vec3.init(0.5, 1.5, 1.0), Vec3.init(90, 180, 120));
         const a_inv = a.inverseTrans();
 
         const a_vec = Vec4.init(2, 3, 4, 1);
         const vec = a.mul(a_vec);
 
-        try std.testing.expect(a_inv.mul(vec).eqlApprox(a_vec, 0.00001));
+        try std.testing.expect(a_inv.mul(vec).eqlApprox(a_vec, 0.000001));
     }
     // inverse
     {
