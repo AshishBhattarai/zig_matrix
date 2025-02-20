@@ -625,13 +625,25 @@ pub fn GenericMatrix(comptime dim_col_i: comptime_int, comptime dim_row_i: compt
                     const z_diff = far - near;
                     return .{ .elements = .{
                         RowVec.init(2 / x_diff, 0, 0, 0),
-                        RowVec.init(0, 2 / y_diff, 0, 0),
-                        RowVec.init(0, 0, 1 / z_diff, 0),
-                        RowVec.init((right + left) / x_diff, (top + bottom) / y_diff, (far + near) / z_diff, 1),
+                        RowVec.init(0, -2 / y_diff, 0, 0),
+                        RowVec.init(0, 0, -1 / z_diff, 0),
+                        RowVec.init(-(right + left) / x_diff, (top + bottom) / y_diff, -near / z_diff, 1),
                     } };
                 }
 
-                /// perspective projection to NDC x=[-1, +1], y = [-1, +1] and z = [0, +1] with vertical FOV and reversedZ
+                pub inline fn invProjection2D(left: Scalar, right: Scalar, bottom: Scalar, top: Scalar, near: Scalar, far: Scalar) Self {
+                    const x_diff = right - left;
+                    const y_diff = top - bottom;
+                    const z_diff = far - near;
+                    return .{ .elements = .{
+                        RowVec.init(x_diff / 2, 0, 0, 0),
+                        RowVec.init(0, -y_diff / 2, 0, 0),
+                        RowVec.init(0, 0, -z_diff, 0),
+                        RowVec.init((right + left) / 2, (top + bottom) / 2, -near, 1),
+                    } };
+                }
+
+                /// perspective projection to NDC x=[-1, +1], y = [-1, +1] and z = [+1, 0] with vertical FOV and reversedZ
                 pub inline fn perspectiveY(fov: Scalar, aspect_ratio: Scalar, near: Scalar, far: Scalar) Self {
                     const tangent = @tan(fov * 0.5);
                     const focal_length = 1 / tangent;
@@ -659,7 +671,7 @@ pub fn GenericMatrix(comptime dim_col_i: comptime_int, comptime dim_row_i: compt
                     } };
                 }
 
-                /// perspective projection to NDC x=[-1, +1], y = [-1, +1] and z = [0, +1] with horizontal FOV and ReversedZ
+                /// perspective projection to NDC x=[-1, +1], y = [-1, +1] and z = [+1, 0] with horizontal FOV and ReversedZ
                 pub inline fn perspectiveX(fov: Scalar, aspect_ratio: Scalar, near: Scalar, far: Scalar) Self {
                     const tangent = @tan(fov * 0.5);
                     const focal_length = 1 / tangent;
@@ -1243,7 +1255,7 @@ test "outer" {
     ));
 }
 
-test "prespevitX" {
+test "perspectiveX" {
     const Mat4x4 = GenericMatrix(4, 4, f32);
     {
         const proj = Mat4x4.perspectiveX(1.0, 1.0, 1.0, 10002.0);
@@ -1252,5 +1264,23 @@ test "prespevitX" {
     {
         const proj = Mat4x4.perspectiveY(1.0, 1.0, 1.0, 10002.0);
         try std.testing.expectEqual(proj.inverse(), Mat4x4.invPerspectiveY(1.0, 1.0, 1.0, 10002.0));
+    }
+}
+
+test "projection2D" {
+    const Mat4x4 = GenericMatrix(4, 4, f32);
+    {
+        const proj = Mat4x4.projection2D(-5, 5, -5, 5, 0.1, 102.0);
+        try std.testing.expectEqual(
+            Mat4x4.identity(),
+            proj.mul(Mat4x4.invProjection2D(-5, 5, -5, 5, 0.1, 102.0)),
+        );
+    }
+    {
+        const proj = Mat4x4.projection2D(0, 1024, 620, 0, 0.1, 102.0);
+        try std.testing.expectEqual(
+            Mat4x4.identity(),
+            proj.mul(Mat4x4.invProjection2D(0, 1024, 620, 0, 0.1, 102.0)),
+        );
     }
 }
