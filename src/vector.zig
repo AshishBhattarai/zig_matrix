@@ -370,6 +370,16 @@ pub fn GenericVector(comptime dim_i: comptime_int, comptime Scalar: type) type {
             return is_nan;
         }
 
+        pub inline fn toFloat(self: Self, NewScalar: type) GenericVector(dim_i, NewScalar) {
+            std.debug.assert(@typeInfo(NewScalar) == .float);
+            return .{ .elements = @floatFromInt(self.elements) };
+        }
+
+        pub inline fn toInt(self: Self, NewScalar: type) GenericVector(dim_i, NewScalar) {
+            std.debug.assert(@typeInfo(NewScalar) == .int);
+            return .{ .elements = @intFromFloat(self.elements) };
+        }
+
         pub inline fn swizzle(self: Self, comptime components: []const u8) GenericVector(components.len, Scalar) {
             comptime {
                 if (components.len < 2 or components.len > 4) {
