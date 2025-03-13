@@ -2,9 +2,7 @@ const std = @import("std");
 const testing = std.testing;
 
 pub fn GenericVector(comptime dim_i: comptime_int, comptime Scalar: type) type {
-    if (@typeInfo(Scalar) != .float and @typeInfo(Scalar) != .int) {
-        @compileError("Vectors cannot be of type " ++ @typeName(Scalar));
-    }
+    ValidateScalarType(Scalar);
 
     return extern struct {
         const Self = @This();
@@ -370,14 +368,30 @@ pub fn GenericVector(comptime dim_i: comptime_int, comptime Scalar: type) type {
             return is_nan;
         }
 
-        pub inline fn toFloat(self: Self, NewScalar: type) GenericVector(dim_i, NewScalar) {
-            std.debug.assert(@typeInfo(NewScalar) == .float);
-            return .{ .elements = @floatFromInt(self.elements) };
+        pub inline fn toFloat(self: Self, comptime NewScalar: type) GenericVector(dim_i, NewScalar) {
+            ValidateScalarType(NewScalar);
+            if (@typeInfo(Scalar) == .float) {
+                return .{ .elements = @floatCast(self.elements) };
+            } else {
+                return .{ .elements = @floatFromInt(self.elements) };
+            }
         }
 
-        pub inline fn toInt(self: Self, NewScalar: type) GenericVector(dim_i, NewScalar) {
-            std.debug.assert(@typeInfo(NewScalar) == .int);
-            return .{ .elements = @intFromFloat(self.elements) };
+        pub inline fn toInt(self: Self, comptime NewScalar: type) GenericVector(dim_i, NewScalar) {
+            ValidateScalarType(NewScalar);
+            if (@typeInfo(Scalar) == .int) {
+                return .{ .elements = @intCast(self.elements) };
+            } else {
+                return .{ .elements = @intFromFloat(self.elements) };
+            }
+        }
+
+        pub inline fn toType(self: Self, comptime NewScalar: type) GenericVector(dim_i, NewScalar) {
+            if (@typeInfo(NewScalar) == .int) {
+                return self.toInt(NewScalar);
+            } else {
+                return self.toFloat(NewScalar);
+            }
         }
 
         pub inline fn swizzle(self: Self, comptime components: []const u8) GenericVector(components.len, Scalar) {
@@ -421,6 +435,11 @@ pub fn GenericVector(comptime dim_i: comptime_int, comptime Scalar: type) type {
             return if (char == 119) 3 else char - 120;
         }
     };
+}
+fn ValidateScalarType(comptime Scalar: type) void {
+    if (@typeInfo(Scalar) != .float and @typeInfo(Scalar) != .int) {
+        @compileError("Vectors cannot be of type " ++ @typeName(Scalar));
+    }
 }
 
 test "init" {
@@ -750,5 +769,40 @@ test "orthogonal" {
     {
         const a = Vec3.init(9, 10, 11).norm();
         try testing.expectEqual(Vec3.init(0e0, 7.399401e-1, -6.726728e-1), a.orthogonal());
+    }
+}
+
+test "toInt" {
+    const Vec3f = GenericVector(3, f32);
+    const Vec3i = GenericVector(3, i32);
+    const Vec3u = GenericVector(3, u32);
+
+    // float to int
+    {
+        const vec = Vec3f.init(1.0, 2.0, 3.0);
+        try testing.expectEqual(Vec3i.init(1, 2, 3), vec.toInt(i32));
+    }
+    // int to int
+    {
+        const vec = Vec3i.init(1, 2, 3);
+        try testing.expectEqual(Vec3u.init(1, 2, 3), vec.toInt(u32));
+    }
+}
+
+test "toFloat" {
+    const Vec3f = GenericVector(3, f32);
+    const Vec3d = GenericVector(3, f64);
+    const Vec3u = GenericVector(3, u32);
+
+    // int to float
+    {
+        const vec = Vec3u.init(2, 3, 4);
+        try testing.expectEqual(Vec3f.init(2, 3, 4), vec.toFloat(f32));
+    }
+
+    // float to float
+    {
+        const vec = Vec3f.init(4, 5, 6);
+        try testing.expectEqual(Vec3d.init(4, 5, 6), vec.toFloat(f64));
     }
 }
