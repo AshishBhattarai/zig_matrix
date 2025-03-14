@@ -1,4 +1,5 @@
 # Linear Algebra Library For Zig
+> zig version: v0.14
 
 ## Introduction
 This is a linear algebra library for Zig aimed towards computer graphics and game development. It provides implementation for common vector, matrix and quaternion operations. At its current stage, it offers support for the following types:

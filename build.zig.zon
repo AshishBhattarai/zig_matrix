@@ -2,7 +2,7 @@
     .name = .zig_matrix,
     .fingerprint = 0xb4639a48e7a7fb16,
     .version = "1.0.1",
-    .minimum_zig_version = "0.12.0",
+    .minimum_zig_version = "0.14.0",
 
     .paths = .{
         "build.zig",
