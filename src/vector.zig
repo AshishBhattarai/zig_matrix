@@ -249,6 +249,10 @@ pub fn GenericVector(comptime dim_i: comptime_int, comptime Scalar: type) type {
             return .{ .elements = @min(a.elements, b.elements) };
         }
 
+        pub inline fn clamp(a: Self, lower: Self, upper: Self) Self {
+            return .{ .elements = @min(@max(lower.elements, a.elements), upper.elements) };
+        }
+
         pub inline fn max(a: Self, b: Self) Self {
             return .{ .elements = @max(a.elements, b.elements) };
         }
@@ -805,4 +809,10 @@ test "toFloat" {
         const vec = Vec3f.init(4, 5, 6);
         try testing.expectEqual(Vec3d.init(4, 5, 6), vec.toFloat(f64));
     }
+}
+
+test "clamp" {
+    const Vec3 = GenericVector(3, f32);
+    const a = Vec3.init(-1, 0.5, 10);
+    try testing.expectEqual(Vec3.init(0, 0.5, 1), a.clamp(Vec3.splat(0), Vec3.splat(1)));
 }
