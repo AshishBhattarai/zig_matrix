@@ -352,6 +352,11 @@ pub fn GenericVector(comptime dim_i: comptime_int, comptime Scalar: type) type {
             return .{ .elements = @splat(scalar) };
         }
 
+        pub inline fn fract(a: Self) Self {
+            const ipart = @trunc(a.elements);
+            return .{ .elements = a.elements - ipart };
+        }
+
         pub inline fn fromSlice(data: []const Scalar) Self {
             return .{ .elements = data[0..dim].* };
         }
@@ -815,4 +820,10 @@ test "clamp" {
     const Vec3 = GenericVector(3, f32);
     const a = Vec3.init(-1, 0.5, 10);
     try testing.expectEqual(Vec3.init(0, 0.5, 1), a.clamp(Vec3.splat(0), Vec3.splat(1)));
+}
+
+test "fract" {
+    const Vec3 = GenericVector(3, f32);
+    const a = Vec3.init(1.0, 0.5, 1.000004);
+    try testing.expectEqual(Vec3.init(0, 0.5, 0.000004053116), a.fract());
 }
