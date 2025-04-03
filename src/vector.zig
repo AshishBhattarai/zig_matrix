@@ -39,6 +39,10 @@ pub fn GenericVector(comptime dim_i: comptime_int, comptime Scalar: type) type {
                 pub inline fn orthogonal(self: Self) Self {
                     return .{ .elements = .{ -self.elements[1], self.elements[0] } };
                 }
+
+                pub inline fn cross(a: Self, b: Self) Scalar {
+                    return a.elements[0] * b.elements[1] - a.elements[1] * b.elements[0];
+                }
             },
             3 => struct {
                 pub inline fn init(xv: Scalar, yv: Scalar, zv: Scalar) Self {
@@ -245,6 +249,14 @@ pub fn GenericVector(comptime dim_i: comptime_int, comptime Scalar: type) type {
             return Self.len(a.sub(b));
         }
 
+        pub inline fn floor(a: Self) Self {
+            return .{ .elements = @floor(a.elements) };
+        }
+
+        pub inline fn ceil(a: Self) Self {
+            return .{ .elements = @ceil(a.elements) };
+        }
+
         pub inline fn min(a: Self, b: Self) Self {
             return .{ .elements = @min(a.elements, b.elements) };
         }
@@ -341,6 +353,10 @@ pub fn GenericVector(comptime dim_i: comptime_int, comptime Scalar: type) type {
         // utilities
 
         pub inline fn shuffle(a: Self, b: Self, mask: @Vector(dim, i32)) Self {
+            return .{ .elements = @shuffle(Scalar, a.elements, b.elements, mask) };
+        }
+
+        pub inline fn shuffleN(a: Self, b: Self, comptime N: comptime_int, mask: @Vector(N, i32)) GenericVector(N, Scalar) {
             return .{ .elements = @shuffle(Scalar, a.elements, b.elements, mask) };
         }
 
