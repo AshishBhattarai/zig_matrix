@@ -422,13 +422,11 @@ pub fn GenericVector(comptime dim_i: comptime_int, comptime Scalar: type) type {
         pub inline fn swizzle(self: Self, comptime components: []const u8) GenericVector(components.len, Scalar) {
             comptime {
                 if (components.len < 2 or components.len > 4) {
-                    @compileError("Swizzle dimensions must be in range [2,4]");
+                    @compileError("Component length must be in range [2,4]");
                 }
                 for (components) |component| {
-                    if (component < 'w' or component > 'z') {
-                        @compileError("invalid swizzle dimension, expected 'x' or 'y' or 'z' or 'w'.");
-                    } else if (dim < charToElementIdx(component)) {
-                        @compileError("vector dimension out of bound.");
+                    if (dim <= charToElementIdx(component)) {
+                        @compileError("Vector dimension out of bound.");
                     }
                 }
             }
@@ -457,7 +455,12 @@ pub fn GenericVector(comptime dim_i: comptime_int, comptime Scalar: type) type {
         }
 
         inline fn charToElementIdx(comptime char: u8) comptime_int {
-            return if (char == 119) 3 else char - 120;
+            if (char == 'x') return 0;
+            if (char == 'y') return 1;
+            if (char == 'z') return 2;
+            if (char == 'w') return 3;
+
+            @compileError("Invalid swizzle dimension, expected 'x' or 'y' or 'z' or 'w'");
         }
     };
 }
