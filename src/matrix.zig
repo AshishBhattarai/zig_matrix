@@ -170,8 +170,8 @@ pub fn GenericMatrix(comptime dim_col_i: comptime_int, comptime dim_row_i: compt
                     const sin_angle = @sin(angle);
 
                     return .{ .elements = .{
-                        RowVec.init(cos_angle, -sin_angle, 0),
-                        RowVec.init(sin_angle, cos_angle, 0),
+                        RowVec.init(cos_angle, sin_angle, 0),
+                        RowVec.init(-sin_angle, cos_angle, 0),
                         RowVec.init(0, 0, 1),
                     } };
                 }
@@ -217,8 +217,20 @@ pub fn GenericMatrix(comptime dim_col_i: comptime_int, comptime dim_row_i: compt
                 }
 
                 /// Extract rotation angle from matrix
+                pub inline fn getRotationUniformScale(self: Self) Scalar {
+                    return std.math.atan2(
+                        self.elements[0].elements[0],
+                        self.elements[0].elements[1],
+                    );
+                }
+
+                /// Extract rotation angle from matrix
                 pub inline fn getRotation(self: Self) Scalar {
-                    return std.math.atan2(self.elements[1][0], self.elements[0][0]);
+                    const vec = self.elements[0].swizzle("xy").norm();
+                    return std.math.atan2(
+                        vec.elements[0],
+                        vec.elements[1],
+                    );
                 }
 
                 /// Extract vec2 scale from matrix
@@ -590,7 +602,7 @@ pub fn GenericMatrix(comptime dim_col_i: comptime_int, comptime dim_row_i: compt
                     return Vec3.init(theta_x, theta_y, theta_z);
                 }
 
-                pub inline fn getRotationUnitScale(self: Self) Vec3 {
+                pub inline fn getRotationUnformScale(self: Self) Vec3 {
                     const col_a = self.elements[0];
                     const col_b = self.elements[1];
                     const col_c = self.elements[2];
@@ -1139,6 +1151,14 @@ test "rotate" {
         const a = Mat4x4.identity().rotate(0.785398, Vec3.init(0, 1, 0));
         try std.testing.expectEqual(Vec3.init(0, 0.785398, 0), a.getRotation());
     }
+
+    // Mat3x3
+    {
+        const Mat3x3 = GenericMatrix(3, 3, f32);
+
+        const a = Mat3x3.identity().rotate(0.785398);
+        try std.testing.expectEqual(7.8539836e-1, a.getRotation());
+    }
 }
 
 test "transformation" {
@@ -1147,14 +1167,29 @@ test "transformation" {
         const Mat4x4 = GenericMatrix(4, 4, f32);
         const Vec3 = GenericVector(3, f32);
 
-        const position = Vec3.init(20, 40, -50);
-        const rotation = Vec3.init(0.78539795, -0.0872665, 0.34906596);
-        const scale = Vec3.init(4, 4, 4);
+        // uniform scale
+        {
+            const position = Vec3.init(20, 40, -50);
+            const rotation = Vec3.init(0.78539795, -0.0872665, 0.34906596);
+            const scale = Vec3.init(4, 4, 4);
 
-        const a = Mat4x4.transformation(position, rotation, scale);
-        try std.testing.expectEqual(position, a.getTranslation());
-        try std.testing.expectEqual(rotation, a.getRotation());
-        try std.testing.expectEqual(scale, a.getScale());
+            const a = Mat4x4.transformation(position, rotation, scale);
+            try std.testing.expectEqual(position, a.getTranslation());
+            try std.testing.expectEqual(rotation, a.getRotationUnformScale());
+            try std.testing.expectEqual(scale, a.getScale());
+        }
+
+        // non-uniform scale
+        {
+            const position = Vec3.init(20, 40, -50);
+            const rotation = Vec3.init(0.78539795, -0.0872665, 0.34906596);
+            const scale = Vec3.init(4, 4, 2);
+
+            const a = Mat4x4.transformation(position, rotation, scale);
+            try std.testing.expectEqual(position, a.getTranslation());
+            try std.testing.expectEqual(rotation, a.getRotation());
+            try std.testing.expectEqual(scale, a.getScale());
+        }
     }
 }
 
