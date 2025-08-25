@@ -5,8 +5,8 @@ const GenericMatrix = @import("matrix.zig").GenericMatrix;
 
 pub fn GenericQuat(comptime Scalar: type) type {
     const Vec3 = GenericVector(3, Scalar);
-    const Mat3 = GenericMatrix(3, 3, Scalar);
-    const Mat4 = GenericMatrix(4, 4, Scalar);
+    const Mat3 = GenericMatrix(3, Scalar);
+    const Mat4 = GenericMatrix(4, Scalar);
 
     return extern struct {
         const Self = @This();
@@ -150,7 +150,7 @@ pub fn GenericQuat(comptime Scalar: type) type {
         }
 
         pub inline fn toMat4(self: Self) Mat4 {
-            return Mat4.fromMat3(self.toMat3(), Mat4.RowVec.init(0, 0, 0, 1));
+            return .m3To4(self.toMat3(), Mat4.RowVec.init(0, 0, 0, 1));
         }
 
         pub inline fn fromMat3(mat: Mat3) Self {
@@ -195,7 +195,7 @@ pub fn GenericQuat(comptime Scalar: type) type {
         }
 
         pub inline fn fromMat4(mat: Mat4) Self {
-            return fromMat3(mat.toMat3());
+            return fromMat3(mat.m4To3());
         }
 
         pub inline fn fromVec(vec: Vec3, wv: Scalar) Self {
@@ -398,7 +398,7 @@ test "axis, rotateZ" {
 test "toMat3" {
     const Quat = GenericQuat(f32);
     const Vec3 = GenericVector(3, f32);
-    const Mat3 = GenericMatrix(3, 3, f32);
+    const Mat3 = GenericMatrix(3, f32);
 
     const a = Quat.fromAxis(std.math.pi / 4.0, Vec3.init(0, 0, 1));
 
@@ -427,7 +427,7 @@ test "rotation" {
 test "fromMat4" {
     const Quat = GenericQuat(f32);
     const Vec3 = GenericVector(3, f32);
-    const Mat4 = GenericMatrix(4, 4, f32);
+    const Mat4 = GenericMatrix(4, f32);
 
     const mat = Mat4.fromEulerAngles(Vec3.init(0.78539795, -0.0872665, 0.34906596));
     const quat = Quat.fromMat4(mat);

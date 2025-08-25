@@ -12,15 +12,15 @@ pub const Vec2h = GenericVector(2, f16);
 pub const Vec3h = GenericVector(3, f16);
 pub const Vec4h = GenericVector(4, f16);
 
-pub const Mat2x2 = GenericMatrix(2, 2, f32);
-pub const Mat3x3 = GenericMatrix(3, 3, f32);
-pub const Mat4x4 = GenericMatrix(4, 4, f32);
-pub const Mat2x2d = GenericMatrix(2, 2, f64);
-pub const Mat3x3d = GenericMatrix(3, 3, f64);
-pub const Mat4x4d = GenericMatrix(4, 4, f64);
-pub const Mat2x2h = GenericMatrix(2, 2, f16);
-pub const Mat3x3h = GenericMatrix(3, 3, f16);
-pub const Mat4x4h = GenericMatrix(4, 4, f16);
+pub const Mat2x2 = GenericMatrix(2, f32);
+pub const Mat3x3 = GenericMatrix(3, f32);
+pub const Mat4x4 = GenericMatrix(4, f32);
+pub const Mat2x2d = GenericMatrix(2, f64);
+pub const Mat3x3d = GenericMatrix(3, f64);
+pub const Mat4x4d = GenericMatrix(4, f64);
+pub const Mat2x2h = GenericMatrix(2, f16);
+pub const Mat3x3h = GenericMatrix(3, f16);
+pub const Mat4x4h = GenericMatrix(4, f16);
 
 pub const Quat = GenericQuat(f32);
 pub const Quath = GenericQuat(f16);
@@ -51,5 +51,5 @@ pub const quath = Quat.init;
 pub const quatd = Quat.init;
 
 test {
-    @import("std").testing.refAllDeclsRecursive(@This());
+    @import("std").testing.refAllDecls(@This());
 }

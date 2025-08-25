@@ -4,6 +4,10 @@ const testing = std.testing;
 pub fn GenericVector(comptime dim_i: comptime_int, comptime Scalar: type) type {
     ValidateScalarType(Scalar);
 
+    if (dim_i < 2 or dim_i > 4) {
+        @compileError("Vector dimensions must be in range [2,4]");
+    }
+
     return extern struct {
         const Self = @This();
         const Elements = @Vector(dim, Scalar);
@@ -13,125 +17,101 @@ pub fn GenericVector(comptime dim_i: comptime_int, comptime Scalar: type) type {
 
         elements: Elements,
 
-        pub usingnamespace switch (dim) {
-            2 => struct {
-                pub inline fn init(xv: Scalar, yv: Scalar) Self {
-                    return .{ .elements = [2]Scalar{ xv, yv } };
-                }
-
-                pub inline fn x(self: Self) Scalar {
-                    return self.elements[0];
-                }
-
-                pub inline fn y(self: Self) Scalar {
-                    return self.elements[1];
-                }
-
-                pub inline fn rotate(self: Self, ang: Scalar) Self {
-                    const sin_angle = @sin(ang);
-                    const cos_angle = @cos(ang);
-                    return .{ .elements = .{
-                        cos_angle * self.x() - sin_angle * self.y(),
-                        sin_angle * self.x() + cos_angle * self.y(),
-                    } };
-                }
-
-                pub inline fn orthogonal(self: Self) Self {
-                    return .{ .elements = .{ -self.elements[1], self.elements[0] } };
-                }
-
-                pub inline fn cross(a: Self, b: Self) Scalar {
-                    return a.elements[0] * b.elements[1] - a.elements[1] * b.elements[0];
-                }
-            },
-            3 => struct {
-                pub inline fn init(xv: Scalar, yv: Scalar, zv: Scalar) Self {
-                    return .{ .elements = [3]Scalar{ xv, yv, zv } };
-                }
-
-                pub inline fn x(self: Self) Scalar {
-                    return self.elements[0];
-                }
-
-                pub inline fn y(self: Self) Scalar {
-                    return self.elements[1];
-                }
-
-                pub inline fn z(self: Self) Scalar {
-                    return self.elements[2];
-                }
-
-                pub inline fn cross(a: Self, b: Self) Self {
-                    const tmp0 = a.swizzle("yzx").elements;
-                    const tmp1 = b.swizzle("zxy").elements;
-                    const tmp2 = a.swizzle("zxy").elements;
-                    const tmp3 = b.swizzle("yzx").elements;
-
-                    return .{ .elements = (tmp0 * tmp1) - (tmp2 * tmp3) };
-                }
-
-                pub inline fn toEculidean(self: Self) Self {
-                    const vx = self.elements[2] * @sin(self.elements[0]) * @cos(self.elements[1]);
-                    const vy = self.elements[2] * @sin(self.elements[0]) * @sin(self.elements[1]);
-                    const vz = self.elements[2] * @cos(self.elements[0]);
-
-                    return .{ .elements = .{ vx, vy, vz } };
-                }
-
-                pub inline fn toEculideanDir(self: Self) Self {
-                    const vx = @sin(self.elements[0]) * @cos(self.elements[1]);
-                    const vy = @sin(self.elements[0]) * @sin(self.elements[1]);
-                    const vz = @cos(self.elements[0]);
-
-                    return .{ .elements = .{ vx, vy, vz } };
-                }
-
-                // x - latitude, y - longitude, r - radius
-                pub inline fn toPolar(self: Self) Self {
-                    const l = self.len();
-                    const azimuth = std.math.acos(self.elements[2] / l);
-                    const polar = std.math.atan2(self.elements[1], self.elements[0]);
-
-                    return .{ .elements = .{ azimuth, polar, l } };
-                }
-
-                const sqrt_inv_3 = @sqrt(1.0 / 3.0);
-                // expects normalized input
-                pub inline fn orthogonal(self: Self) Self {
-                    const cond = @abs(self.swizzle("xxx").elements) >= Self.splat(sqrt_inv_3).elements;
-                    const tmp0 = Self.select(Self.init(self.y(), -self.x(), 0.0), Self.init(0.0, self.z(), -self.y()), cond);
-                    return tmp0.norm();
-                }
-            },
-            4 => struct {
-                pub inline fn init(xv: Scalar, yv: Scalar, zv: Scalar, sw: Scalar) Self {
-                    return .{ .elements = [4]Scalar{ xv, yv, zv, sw } };
-                }
-
-                pub inline fn fromVec3(vec3: GenericVector(3, Scalar), new_elem: Scalar) Self {
-                    return Self.init(vec3.x(), vec3.y(), vec3.z(), new_elem);
-                }
-
-                pub inline fn x(self: Self) Scalar {
-                    return self.elements[0];
-                }
-
-                pub inline fn y(self: Self) Scalar {
-                    return self.elements[1];
-                }
-
-                pub inline fn z(self: Self) Scalar {
-                    return self.elements[2];
-                }
-
-                pub inline fn w(self: Self) Scalar {
-                    return self.elements[3];
-                }
-            },
-            else => @compileError("Vector dimensions must be in range [2,4]"),
+        pub const init = switch (dim) {
+            2 => init2,
+            3 => init3,
+            4 => init4,
+            else => unreachable,
         };
 
-        // arithmetic operations
+        pub const rotate = switch (dim) {
+            2 => rotate2,
+            3 => @compileError("rotate is not implemented for Vec3"),
+            4 => @compileError("rotate is not implemented for Vec4"),
+            else => unreachable,
+        };
+
+        pub const orthogonal = switch (dim) {
+            2 => orthogonal2,
+            3 => orthogonal3,
+            4 => @compileError("orthogonal is not implemented for Vec4"),
+            else => unreachable,
+        };
+
+        pub const cross = switch (dim) {
+            2 => cross2,
+            3 => cross3,
+            4 => @compileError("cross is not implemented for Vec4"),
+            else => unreachable,
+        };
+
+        pub const toEculidean = switch (dim) {
+            2 => @compileError("toEculidean is not implemented for Vec2"),
+            3 => toEculidean3,
+            4 => @compileError("toEculidean is not implemented for Vec4"),
+            else => unreachable,
+        };
+
+        pub const toEculideanDir = switch (dim) {
+            2 => @compileError("toEculideanDir is not implemented for Vec2"),
+            3 => toEculideanDir3,
+            4 => @compileError("toEculideanDir is not implemented for Vec4"),
+            else => unreachable,
+        };
+
+        pub const toPolar = switch (dim) {
+            2 => @compileError("toPolar is not implemented for Vec2"),
+            3 => toPolar3,
+            4 => @compileError("toPolar is not implemented for Vec4"),
+            else => unreachable,
+        };
+
+        pub const minElem = switch (dim) {
+            2 => minElem2,
+            3 => minElem3,
+            4 => minElem4,
+            else => unreachable,
+        };
+
+        pub const maxElem = switch (dim) {
+            2 => maxElem2,
+            3 => maxElem3,
+            4 => maxElem4,
+            else => unreachable,
+        };
+
+        pub inline fn x(self: Self) Scalar {
+            return self.elements[0];
+        }
+
+        pub inline fn y(self: Self) Scalar {
+            return self.elements[1];
+        }
+
+        pub inline fn z(self: Self) Scalar {
+            return self.elements[2];
+        }
+
+        pub inline fn w(self: Self) Scalar {
+            return self.elements[3];
+        }
+
+        const V2 = GenericVector(2, Scalar);
+        const V3 = GenericVector(3, Scalar);
+        const V4 = GenericVector(4, Scalar);
+
+        // conversions
+        pub inline fn v2To3(v: V2, zv: Scalar) V3 {
+            return .init(v.x(), v.y(), zv);
+        }
+
+        pub inline fn v2To4(v: V2, zv: Scalar, wv: Scalar) V4 {
+            return .init(v.x(), v.y(), zv, wv);
+        }
+
+        pub inline fn v3To4(v: V3, wv: Scalar) V4 {
+            return .init(v.x(), v.y(), v.z(), wv);
+        }
 
         pub inline fn add(a: Self, b: Self) Self {
             return .{ .elements = a.elements + b.elements };
@@ -166,7 +146,6 @@ pub fn GenericVector(comptime dim_i: comptime_int, comptime Scalar: type) type {
         }
 
         // vector - scalar operations
-
         pub inline fn dot(a: Self, b: Self) Scalar {
             return @reduce(.Add, a.elements * b.elements);
         }
@@ -269,23 +248,16 @@ pub fn GenericVector(comptime dim_i: comptime_int, comptime Scalar: type) type {
             return .{ .elements = @max(a.elements, b.elements) };
         }
 
-        pub inline fn minElem(a: Self) Scalar {
-            return a.min(a.swizzle("yzx")).min(a.swizzle("zxy")).elements[0];
-        }
-
-        pub inline fn minElemIdx(a: Self) u8 {
-            const min_elems = a.min(a.swizzle("yzx")).min(a.swizzle("zxy")).elements;
-            const mask: u3 = @bitCast(a.elements == min_elems);
+        const MaskType = @Type(.{ .int = .{ .signedness = .unsigned, .bits = dim } });
+        inline fn minElemIdx(a: Self) u8 {
+            const min_elems: Elements = @splat(Self.minElem(a));
+            const mask: MaskType = @bitCast(a.elements == min_elems);
             return @ctz(mask);
         }
 
-        pub inline fn maxElem(a: Self) Scalar {
-            return a.max(a.swizzle("yzx")).max(a.swizzle("zxy")).elements[0];
-        }
-
-        pub inline fn maxElemIdx(a: Self) u8 {
-            const max_elems = a.max(a.swizzle("yzx")).max(a.swizzle("zxy")).elements;
-            const mask: u3 = @bitCast(a.elements == max_elems);
+        inline fn maxElemIdx(a: Self) u8 {
+            const max_elems: Elements = @splat(Self.maxElem(a));
+            const mask: MaskType = @bitCast(a.elements == max_elems);
             return @ctz(mask);
         }
 
@@ -418,6 +390,115 @@ pub fn GenericVector(comptime dim_i: comptime_int, comptime Scalar: type) type {
                 return self.toFloat(NewScalar);
             }
         }
+
+        // 2D vector methods
+        //////////////////////////////////////////////////////////////////////////////////
+        inline fn init2(xv: Scalar, yv: Scalar) Self {
+            return .{ .elements = .{ xv, yv } };
+        }
+
+        inline fn rotate2(self: Self, ang: Scalar) Self {
+            const sin_angle = @sin(ang);
+            const cos_angle = @cos(ang);
+            return .{ .elements = .{
+                cos_angle * self.x() - sin_angle * self.y(),
+                sin_angle * self.x() + cos_angle * self.y(),
+            } };
+        }
+
+        inline fn orthogonal2(self: Self) Self {
+            return .{ .elements = .{ -self.elements[1], self.elements[0] } };
+        }
+
+        inline fn cross2(a: Self, b: Self) Scalar {
+            return a.elements[0] * b.elements[1] - a.elements[1] * b.elements[0];
+        }
+
+        inline fn minElem2(a: Self) Scalar {
+            return @min(a.elements[0], a.elements[1]);
+        }
+
+        inline fn maxElem2(a: Self) Scalar {
+            return @max(a.elements[0], a.elements[1]);
+        }
+
+        //////////////////////////////////////////////////////////////////////////////////
+
+        // 3D vector methods
+        //////////////////////////////////////////////////////////////////////////////////
+        inline fn init3(xv: Scalar, yv: Scalar, zv: Scalar) Self {
+            return .{ .elements = .{ xv, yv, zv } };
+        }
+
+        inline fn cross3(a: Self, b: Self) Self {
+            const tmp0 = a.swizzle("yzx").elements;
+            const tmp1 = b.swizzle("zxy").elements;
+            const tmp2 = a.swizzle("zxy").elements;
+            const tmp3 = b.swizzle("yzx").elements;
+
+            return .{ .elements = (tmp0 * tmp1) - (tmp2 * tmp3) };
+        }
+
+        /// convert polar vector to eculidean vector
+        inline fn toEculidean3(self: Self) Self {
+            const vx = self.elements[2] * @sin(self.elements[0]) * @cos(self.elements[1]);
+            const vy = self.elements[2] * @sin(self.elements[0]) * @sin(self.elements[1]);
+            const vz = self.elements[2] * @cos(self.elements[0]);
+
+            return .{ .elements = .{ vx, vy, vz } };
+        }
+
+        /// converr polar direction vector to eculidean direction vector
+        inline fn toEculideanDir3(self: Self) Self {
+            const vx = @sin(self.elements[0]) * @cos(self.elements[1]);
+            const vy = @sin(self.elements[0]) * @sin(self.elements[1]);
+            const vz = @cos(self.elements[0]);
+
+            return .{ .elements = .{ vx, vy, vz } };
+        }
+
+        // x - latitude, y - longitude, r - radius
+        inline fn toPolar3(self: Self) Self {
+            const l = self.len();
+            const azimuth = std.math.acos(self.elements[2] / l);
+            const polar = std.math.atan2(self.elements[1], self.elements[0]);
+
+            return .{ .elements = .{ azimuth, polar, l } };
+        }
+
+        // for a unit lenght 3D vector at least one component must be >= sqrt(1/3)
+        const sqrt_inv_3 = @sqrt(1.0 / 3.0);
+        // expects normalized input
+        pub inline fn orthogonal3(self: Self) Self {
+            const cond = @abs(self.elements[0]) >= sqrt_inv_3;
+            const tmp0 = Self.select(Self.init(self.y(), -self.x(), 0.0), Self.init(0.0, self.z(), -self.y()), @splat(cond));
+            return tmp0.norm();
+        }
+
+        inline fn minElem3(a: Self) Scalar {
+            return @min(a.elements[0], a.elements[1], a.elements[2]);
+        }
+
+        inline fn maxElem3(a: Self) Scalar {
+            return @max(a.elements[0], a.elements[1], a.elements[2]);
+        }
+
+        //////////////////////////////////////////////////////////////////////////////////
+
+        // 4D vector methods
+        //////////////////////////////////////////////////////////////////////////////////
+        pub inline fn init4(xv: Scalar, yv: Scalar, zv: Scalar, wv: Scalar) Self {
+            return .{ .elements = .{ xv, yv, zv, wv } };
+        }
+
+        inline fn minElem4(a: Self) Scalar {
+            return @min(a.elements[0], a.elements[1], a.elements[2], a.elements[3]);
+        }
+
+        inline fn maxElem4(a: Self) Scalar {
+            return @max(a.elements[0], a.elements[1], a.elements[2], a.elements[3]);
+        }
+        //////////////////////////////////////////////////////////////////////////////////
 
         pub inline fn swizzle(self: Self, comptime components: []const u8) GenericVector(components.len, Scalar) {
             comptime {
@@ -766,25 +847,49 @@ test "signnz" {
 }
 
 test "minElem" {
-    const Vec3 = GenericVector(3, f32);
-    const a = Vec3.init(20.0, 0, -6.88);
+    {
+        const Vec3 = GenericVector(3, f32);
+        const a = Vec3.init(20.0, 0, -6.88);
 
-    const min = a.minElem();
-    const min_idx = a.minElemIdx();
+        const min = a.minElem();
+        const min_idx = a.minElemIdx();
 
-    try testing.expectEqual(-6.88, min);
-    try testing.expectEqual(2, min_idx);
+        try testing.expectEqual(-6.88, min);
+        try testing.expectEqual(2, min_idx);
+    }
+    {
+        const Vec4 = GenericVector(4, f32);
+        const a = Vec4.init(20.0, 0, -6.88, -6.0);
+
+        const min = a.minElem();
+        const min_idx = a.minElemIdx();
+
+        try testing.expectEqual(-6.88, min);
+        try testing.expectEqual(2, min_idx);
+    }
 }
 
 test "maxElem" {
-    const Vec3 = GenericVector(3, f32);
-    const a = Vec3.init(20.0, 0, -6.88);
+    {
+        const Vec3 = GenericVector(3, f32);
+        const a = Vec3.init(20.0, 0, -6.88);
 
-    const max = a.maxElem();
-    const max_idx = a.maxElemIdx();
+        const max = a.maxElem();
+        const max_idx = a.maxElemIdx();
 
-    try testing.expectEqual(20.0, max);
-    try testing.expectEqual(0, max_idx);
+        try testing.expectEqual(20.0, max);
+        try testing.expectEqual(0, max_idx);
+    }
+    {
+        const Vec3 = GenericVector(4, f32);
+        const a = Vec3.init(20.0, 0, -6.88, 19.99);
+
+        const max = a.maxElem();
+        const max_idx = a.maxElemIdx();
+
+        try testing.expectEqual(20.0, max);
+        try testing.expectEqual(0, max_idx);
+    }
 }
 
 test "orthogonal" {
