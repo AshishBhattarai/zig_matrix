@@ -1,5 +1,5 @@
 # Linear Algebra Library For Zig
-> zig version: v0.14
+> zig version: v0.15.1
 
 ## Introduction
 This is a linear algebra library for Zig aimed towards computer graphics and game development. It provides implementation for common vector, matrix and quaternion operations. At its current stage, it offers support for the following types:
@@ -38,7 +38,7 @@ const zig_matrix_dep = b.dependency("zig_matrix", .{
         .target = target,
         .optimize = optimize,
 });
-exe.root_module.addImport("zig_matrix", zig_matrix_dep.module("zig_matrix"));
+root_module.addImport("zig_matrix", zig_matrix_dep.module("zig_matrix"));
 ```
 
 ## Usage
