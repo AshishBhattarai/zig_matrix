@@ -249,13 +249,13 @@ pub fn GenericVector(comptime dim_i: comptime_int, comptime Scalar: type) type {
         }
 
         const MaskType = @Type(.{ .int = .{ .signedness = .unsigned, .bits = dim } });
-        inline fn minElemIdx(a: Self) u8 {
+        pub inline fn minElemIdx(a: Self) u8 {
             const min_elems: Elements = @splat(Self.minElem(a));
             const mask: MaskType = @bitCast(a.elements == min_elems);
             return @ctz(mask);
         }
 
-        inline fn maxElemIdx(a: Self) u8 {
+        pub inline fn maxElemIdx(a: Self) u8 {
             const max_elems: Elements = @splat(Self.maxElem(a));
             const mask: MaskType = @bitCast(a.elements == max_elems);
             return @ctz(mask);
