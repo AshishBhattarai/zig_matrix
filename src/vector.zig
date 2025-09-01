@@ -177,7 +177,7 @@ pub fn GenericVector(comptime dim_i: comptime_int, comptime Scalar: type) type {
         }
 
         pub inline fn neql(a: Self, b: Self) bool {
-            return @reduce(.And, a.elements != b.elements);
+            return @reduce(.Or, a.elements != b.elements);
         }
 
         pub inline fn eqlApprox(a: Self, b: Self, tolerance: Scalar) bool {
@@ -950,4 +950,35 @@ test "fract" {
     const Vec3 = GenericVector(3, f32);
     const a = Vec3.init(1.0, 0.5, 1.000004);
     try testing.expectEqual(Vec3.init(0, 0.5, 0.000004053116), a.fract());
+}
+
+test "eql" {
+    const Vec3 = GenericVector(3, f32);
+    const a = Vec3.init(-1, 0.5, 10);
+    const b = Vec3.init(-1, 0.5, 10);
+    const c = Vec3.init(-1, 0.5, 10.02);
+
+    try testing.expectEqual(true, a.eql(b));
+    try testing.expectEqual(false, a.eql(c));
+    try testing.expectEqual(false, b.eql(c));
+}
+
+test "neql" {
+    const Vec3 = GenericVector(3, f32);
+    const a = Vec3.init(-1, 0.5, 10);
+    const b = Vec3.init(-1, 0.5, 10);
+    const c = Vec3.init(-1, 0.5, 10.02);
+
+    try testing.expectEqual(false, a.neql(b));
+    try testing.expectEqual(true, a.neql(c));
+    try testing.expectEqual(true, b.neql(c));
+}
+
+test "eqlApprox" {
+    const Vec3 = GenericVector(3, f32);
+    const a = Vec3.init(-1, 0.50, 10);
+    const b = Vec3.init(-1, 0.52, 10.02);
+
+    try testing.expectEqual(true, a.eqlApprox(b, 0.021));
+    try testing.expectEqual(false, a.eqlApprox(b, 0.009));
 }
