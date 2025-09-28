@@ -20,7 +20,7 @@ pub fn GenericMatrix(comptime dim: comptime_int, comptime Scalar: type) type {
         pub const RowVec = GenericVector(dim_row, Scalar);
         const TransVec = GenericVector(dim_col - 1, Scalar);
 
-        elements: [dim_col]RowVec,
+        e: [dim_col]RowVec,
 
         pub const init = switch (dim) {
             2 => init2x2,
@@ -155,35 +155,39 @@ pub fn GenericMatrix(comptime dim: comptime_int, comptime Scalar: type) type {
         /// Initialize 4x4 column-major matrix 3x3 matrix, r3 row vector
         pub inline fn m3To4(self: M3, r3: M4.RowVec) M4 {
             return .init(
-                .v3To4(self.elements[0], 0),
-                .v3To4(self.elements[1], 0),
-                .v3To4(self.elements[2], 0),
+                .v3To4(self.e[0], 0),
+                .v3To4(self.e[1], 0),
+                .v3To4(self.e[2], 0),
                 r3,
             );
         }
 
         pub inline fn m4To3(self: M4) M3 {
             return .init(
-                self.elements[0].swizzle("xyz"),
-                self.elements[1].swizzle("xyz"),
-                self.elements[2].swizzle("xyz"),
+                self.e[0].swizzle("xyz"),
+                self.e[1].swizzle("xyz"),
+                self.e[2].swizzle("xyz"),
             );
         }
 
         pub inline fn m3To2(self: M3) M2 {
             return .init(
-                self.elements[0].swizzle("xy"),
-                self.elements[1].swizzle("xy"),
-                self.elements[1].swizzle("xy"),
+                self.e[0].swizzle("xy"),
+                self.e[1].swizzle("xy"),
+                self.e[1].swizzle("xy"),
             );
         }
 
         pub inline fn m2To3(self: M2, r2: M3.RowVec) M3 {
             return .init(
-                .v2To3(self.elements[0], 0),
-                .v2To3(self.elements[1], 0),
+                .v2To3(self.e[0], 0),
+                .v2To3(self.e[1], 0),
                 r2,
             );
+        }
+
+        pub inline fn elem(self: Self, index: usize) RowVec {
+            return self.e[index];
         }
 
         /// Applies translation and returns a new matrix
@@ -231,7 +235,7 @@ pub fn GenericMatrix(comptime dim: comptime_int, comptime Scalar: type) type {
                         const col_mul = b_col_i.mul(a.col(row_idx));
                         sum = sum.add(col_mul);
                     }
-                    result.elements[col_idx] = sum;
+                    result.e[col_idx] = sum;
                 }
             }
             return result;
@@ -240,7 +244,7 @@ pub fn GenericMatrix(comptime dim: comptime_int, comptime Scalar: type) type {
         pub inline fn add(a: Self, b: Self) Self {
             var result: Self = undefined;
             inline for (0..dim_col) |i| {
-                result.elements[i] = a.elements[i].add(b.elements[i]);
+                result.e[i] = a.e[i].add(b.e[i]);
             }
             return result;
         }
@@ -248,7 +252,7 @@ pub fn GenericMatrix(comptime dim: comptime_int, comptime Scalar: type) type {
         pub inline fn sub(a: Self, b: Self) Self {
             var result: Self = undefined;
             inline for (0..dim_col) |i| {
-                result.elements[i] = a.elements[i].sub(b.elements[i]);
+                result.e[i] = a.e[i].sub(b.e[i]);
             }
             return result;
         }
@@ -256,7 +260,7 @@ pub fn GenericMatrix(comptime dim: comptime_int, comptime Scalar: type) type {
         pub inline fn mulScalar(a: Self, v: Scalar) Self {
             var result: Self = undefined;
             inline for (0..dim_col) |i| {
-                result.elements[i] = a.elements[i].mulScalar(v);
+                result.e[i] = a.e[i].mulScalar(v);
             }
             return result;
         }
@@ -264,7 +268,7 @@ pub fn GenericMatrix(comptime dim: comptime_int, comptime Scalar: type) type {
         pub inline fn addScalar(a: Self, v: Scalar) Self {
             var result: Self = undefined;
             inline for (0..dim_col) |i| {
-                result.elements[i] = a.elements[i].addScalar(v);
+                result.e[i] = a.e[i].addScalar(v);
             }
             return result;
         }
@@ -272,41 +276,41 @@ pub fn GenericMatrix(comptime dim: comptime_int, comptime Scalar: type) type {
         pub inline fn subScalar(a: Self, v: Scalar) Self {
             var result: Self = undefined;
             inline for (0..dim_col) |i| {
-                result.elements[i] = a.elements[i].subScalar(v);
+                result.e[i] = a.e[i].subScalar(v);
             }
             return result;
         }
 
         /// Fetch row vector from give column index
         pub inline fn col(self: Self, idx: u32) RowVec {
-            return self.elements[idx];
+            return self.e[idx];
         }
 
         /// Fetch column vector from give row index
         pub inline fn row(self: Self, row_idx: u32) ColVec {
             var result: ColVec = undefined;
             inline for (0..dim_col) |col_idx| {
-                result.elements[col_idx] = self.elements[col_idx].elements[row_idx];
+                result.e[col_idx] = self.e[col_idx].e[row_idx];
             }
             return result;
         }
 
         pub inline fn setRow(self: *Self, row_idx: u32, vec: ColVec) void {
             inline for (0..dim_col) |col_idx| {
-                self.elements[col_idx].elements[row_idx] = vec.elements[col_idx];
+                self.e[col_idx].e[row_idx] = vec.e[col_idx];
             }
         }
 
         pub inline fn setCol(self: *Self, idx: u32, vec: RowVec) void {
-            self.elements[idx] = vec;
+            self.e[idx] = vec;
         }
 
         pub inline fn element(self: Self, col_idx: u32, row_idx: u32) Scalar {
-            return self.elements[col_idx].elements[row_idx];
+            return self.e[col_idx].e[row_idx];
         }
 
         pub inline fn splat(value: Scalar) Self {
-            return .{ .elements = .{RowVec.splat(value)} ** dim_col };
+            return .{ .e = .{RowVec.splat(value)} ** dim_col };
         }
 
         /// orthographic projection to NDC x=[-1, +1], y = [-1, +1] and z = [0, +1]
@@ -314,7 +318,7 @@ pub fn GenericMatrix(comptime dim: comptime_int, comptime Scalar: type) type {
             const x_diff = right - left;
             const y_diff = top - bottom;
             const z_diff = far - near;
-            return .{ .elements = .{
+            return .{ .e = .{
                 .init(2 / x_diff, 0, 0, 0),
                 .init(0, -2 / y_diff, 0, 0),
                 .init(0, 0, -1 / z_diff, 0),
@@ -326,7 +330,7 @@ pub fn GenericMatrix(comptime dim: comptime_int, comptime Scalar: type) type {
             const x_diff = right - left;
             const y_diff = top - bottom;
             const z_diff = far - near;
-            return .{ .elements = .{
+            return .{ .e = .{
                 .init(x_diff / 2, 0, 0, 0),
                 .init(0, -y_diff / 2, 0, 0),
                 .init(0, 0, -z_diff, 0),
@@ -340,7 +344,7 @@ pub fn GenericMatrix(comptime dim: comptime_int, comptime Scalar: type) type {
             const focal_length = 1 / tangent;
             const A = near / (far - near);
 
-            return .{ .elements = .{
+            return .{ .e = .{
                 .init(focal_length / aspect_ratio, 0, 0, 0),
                 .init(0, -focal_length, 0, 0),
                 .init(0, 0, A, -1.0),
@@ -354,7 +358,7 @@ pub fn GenericMatrix(comptime dim: comptime_int, comptime Scalar: type) type {
             const A = near / (far - near);
             const B = far * A;
 
-            return .{ .elements = .{
+            return .{ .e = .{
                 .init(aspect_ratio / focal_length, 0, 0, 0),
                 .init(0, -1.0 / focal_length, 0, 0),
                 .init(0, 0, 0.0, 1.0 / B),
@@ -368,7 +372,7 @@ pub fn GenericMatrix(comptime dim: comptime_int, comptime Scalar: type) type {
             const focal_length = 1 / tangent;
             const A = near / (far - near);
 
-            return .{ .elements = .{
+            return .{ .e = .{
                 .init(focal_length, 0, 0, 0),
                 .init(0, -focal_length * aspect_ratio, 0, 0),
                 .init(0, 0, A, -1.0),
@@ -382,7 +386,7 @@ pub fn GenericMatrix(comptime dim: comptime_int, comptime Scalar: type) type {
             const A = near / (far - near);
             const B = far * A;
 
-            return .{ .elements = .{
+            return .{ .e = .{
                 .init(1.0 / focal_length, 0, 0, 0),
                 .init(0, -1.0 / (focal_length * aspect_ratio), 0, 0),
                 .init(0, 0, 0.0, 1.0 / B),
@@ -394,19 +398,19 @@ pub fn GenericMatrix(comptime dim: comptime_int, comptime Scalar: type) type {
         //////////////////////////////////////////////////////////////////////////////////
         /// Initialize 2x2 column-major matrix with row vectors
         inline fn init2x2(r0: RowVec, r1: RowVec) Self {
-            return .{ .elements = .{ r0, r1 } };
+            return .{ .e = .{ r0, r1 } };
         }
 
         /// Initialize 2x2 column-major identity matrix
         inline fn identity2x2() Self {
-            return .{ .elements = .{
+            return .{ .e = .{
                 RowVec.init(1, 0),
                 RowVec.init(0, 1),
             } };
         }
 
         inline fn diagonal2x2(vec: ColVec) Self {
-            return .{ .elements = .{
+            return .{ .e = .{
                 RowVec.init(vec.x(), 0),
                 RowVec.init(0, vec.y()),
             } };
@@ -414,7 +418,7 @@ pub fn GenericMatrix(comptime dim: comptime_int, comptime Scalar: type) type {
 
         /// Initialize 2x2 column-major matrix from array slice
         inline fn fromSlice2x2(data: *const [size]Scalar) Self {
-            return .{ .elements = .{
+            return .{ .e = .{
                 RowVec.init(data[0], data[1]),
                 RowVec.init(data[2], data[3]),
             } };
@@ -422,25 +426,25 @@ pub fn GenericMatrix(comptime dim: comptime_int, comptime Scalar: type) type {
 
         /// Transpose into a new 2x2 matrix
         inline fn transpose2x2(self: Self) Self {
-            return .{ .elements = .{ self.row(0), self.row(1) } };
+            return .{ .e = .{ self.row(0), self.row(1) } };
         }
 
         /// Computes determinant of 2x2 matrix
         inline fn determinant2x2(self: Self) Scalar {
-            return self.elements[0].x() * self.elements[1].y() - self.elements[1].x() * self.elements[0].y();
+            return self.e[0].x() * self.e[1].y() - self.e[1].x() * self.e[0].y();
         }
 
         /// Computes inverse of 2x2 matrix
         inline fn inverse2x2(self: Self) Self {
             const det = self.determinant();
-            return .{ .elements = .{
-                RowVec.init(self.elements[1].y(), -self.elements[0].y()).divScalar(det),
-                RowVec.init(-self.elements[1].x(), self.elements[0].x()).divScalar(det),
+            return .{ .e = .{
+                RowVec.init(self.e[1].y(), -self.e[0].y()).divScalar(det),
+                RowVec.init(-self.e[1].x(), self.e[0].x()).divScalar(det),
             } };
         }
 
         inline fn outer2x2(a: Vec2, b: Vec2) Self {
-            return .{ .elements = .{
+            return .{ .e = .{
                 a.mul(b.swizzle("xx")),
                 a.mul(b.swizzle("yy")),
             } };
@@ -451,12 +455,12 @@ pub fn GenericMatrix(comptime dim: comptime_int, comptime Scalar: type) type {
         //////////////////////////////////////////////////////////////////////////////////
         /// Initialize 3x3 column-major matrix with row vectors
         inline fn init3x3(r0: RowVec, r1: RowVec, r2: RowVec) Self {
-            return .{ .elements = .{ r0, r1, r2 } };
+            return .{ .e = .{ r0, r1, r2 } };
         }
 
         /// Initialize 3x3 column-major identity matrix
         inline fn identity3x3() Self {
-            return .{ .elements = .{
+            return .{ .e = .{
                 RowVec.init(1, 0, 0),
                 RowVec.init(0, 1, 0),
                 RowVec.init(0, 0, 1),
@@ -464,7 +468,7 @@ pub fn GenericMatrix(comptime dim: comptime_int, comptime Scalar: type) type {
         }
 
         inline fn diagonal3x3(vec: ColVec) Self {
-            return .{ .elements = .{
+            return .{ .e = .{
                 RowVec.init(vec.x(), 0, 0),
                 RowVec.init(0, vec.y(), 0),
                 RowVec.init(0, 0, vec.z()),
@@ -473,7 +477,7 @@ pub fn GenericMatrix(comptime dim: comptime_int, comptime Scalar: type) type {
 
         /// Initialize 3x3 column-major matrix from array slice
         inline fn fromSlice3x3(data: *const [size]Scalar) Self {
-            return .{ .elements = .{
+            return .{ .e = .{
                 RowVec.init(data[0], data[1], data[2]),
                 RowVec.init(data[3], data[4], data[5]),
                 RowVec.init(data[6], data[7], data[8]),
@@ -484,24 +488,24 @@ pub fn GenericMatrix(comptime dim: comptime_int, comptime Scalar: type) type {
         inline fn transpose3x3(self: Self) Self {
             var val: Self = undefined;
 
-            const temp0 = @shuffle(Scalar, self.elements[0].elements, self.elements[1].elements, [4]i32{ 0, 1, -1, -2 });
-            const temp1 = @shuffle(Scalar, self.elements[0].elements, self.elements[1].elements, [4]i32{ 2, -3, 2, -3 });
+            const temp0 = @shuffle(Scalar, self.e[0].e, self.e[1].e, [4]i32{ 0, 1, -1, -2 });
+            const temp1 = @shuffle(Scalar, self.e[0].e, self.e[1].e, [4]i32{ 2, -3, 2, -3 });
 
-            val.elements[0] = .{ .elements = @shuffle(Scalar, temp0, self.elements[2].elements, [3]i32{ 0, 2, -1 }) };
-            val.elements[1] = .{ .elements = @shuffle(Scalar, temp0, self.elements[2].elements, [3]i32{ 1, 3, -2 }) };
-            val.elements[2] = .{ .elements = @shuffle(Scalar, temp1, self.elements[2].elements, [3]i32{ 0, 1, -3 }) };
+            val.e[0] = .{ .e = @shuffle(Scalar, temp0, self.e[2].e, [3]i32{ 0, 2, -1 }) };
+            val.e[1] = .{ .e = @shuffle(Scalar, temp0, self.e[2].e, [3]i32{ 1, 3, -2 }) };
+            val.e[2] = .{ .e = @shuffle(Scalar, temp1, self.e[2].e, [3]i32{ 0, 1, -3 }) };
 
             return val;
         }
 
         /// Compute determinant of 3x3 matrix
         inline fn determinant3x3(self: Self) Scalar {
-            const m0 = self.elements[0].elements *
-                self.elements[1].swizzle("yzx").elements *
-                self.elements[2].swizzle("zxy").elements;
-            const m1 = self.elements[0].swizzle("yxz").elements *
-                self.elements[1].swizzle("xzy").elements *
-                self.elements[2].swizzle("zyx").elements;
+            const m0 = self.e[0].e *
+                self.e[1].swizzle("yzx").e *
+                self.e[2].swizzle("zxy").e;
+            const m1 = self.e[0].swizzle("yxz").e *
+                self.e[1].swizzle("xzy").e *
+                self.e[2].swizzle("zyx").e;
             return @reduce(.Add, m0 - m1);
         }
 
@@ -509,28 +513,28 @@ pub fn GenericMatrix(comptime dim: comptime_int, comptime Scalar: type) type {
             var inv: Self = undefined;
 
             // Compute Adjoint
-            const temp10_a = self.elements[1].shuffle(self.elements[0], [3]i32{ 1, -2, -2 });
-            const temp10_b = self.elements[1].shuffle(self.elements[0], [3]i32{ 2, -3, -3 });
-            const temp10_c = self.elements[1].shuffle(self.elements[0], [3]i32{ 0, -1, -1 });
-            const temp21_a = self.elements[2].shuffle(self.elements[1], [3]i32{ 1, 1, -2 });
-            const temp21_b = self.elements[2].shuffle(self.elements[1], [3]i32{ 2, 2, -3 });
-            const temp21_c = self.elements[2].shuffle(self.elements[1], [3]i32{ 0, 0, -1 });
+            const temp10_a = self.e[1].shuffle(self.e[0], [3]i32{ 1, -2, -2 });
+            const temp10_b = self.e[1].shuffle(self.e[0], [3]i32{ 2, -3, -3 });
+            const temp10_c = self.e[1].shuffle(self.e[0], [3]i32{ 0, -1, -1 });
+            const temp21_a = self.e[2].shuffle(self.e[1], [3]i32{ 1, 1, -2 });
+            const temp21_b = self.e[2].shuffle(self.e[1], [3]i32{ 2, 2, -3 });
+            const temp21_c = self.e[2].shuffle(self.e[1], [3]i32{ 0, 0, -1 });
 
-            inv.elements[0] = temp10_a.mul(temp21_b).sub(temp10_b.mul(temp21_a)).mul(RowVec.init(1.0, -1.0, 1.0));
-            inv.elements[1] = temp10_c.mul(temp21_b).sub(temp10_b.mul(temp21_c)).mul(RowVec.init(-1.0, 1.0, -1.0));
-            inv.elements[2] = temp10_c.mul(temp21_a).sub(temp10_a.mul(temp21_c)).mul(RowVec.init(1.0, -1.0, 1.0));
+            inv.e[0] = temp10_a.mul(temp21_b).sub(temp10_b.mul(temp21_a)).mul(RowVec.init(1.0, -1.0, 1.0));
+            inv.e[1] = temp10_c.mul(temp21_b).sub(temp10_b.mul(temp21_c)).mul(RowVec.init(-1.0, 1.0, -1.0));
+            inv.e[2] = temp10_c.mul(temp21_a).sub(temp10_a.mul(temp21_c)).mul(RowVec.init(1.0, -1.0, 1.0));
 
-            const inv_det = RowVec.splat(1.0 / self.elements[0].dot(inv.row(0)));
+            const inv_det = RowVec.splat(1.0 / self.e[0].dot(inv.row(0)));
 
-            inv.elements[0] = inv.elements[0].mul(inv_det);
-            inv.elements[1] = inv.elements[1].mul(inv_det);
-            inv.elements[2] = inv.elements[2].mul(inv_det);
+            inv.e[0] = inv.e[0].mul(inv_det);
+            inv.e[1] = inv.e[1].mul(inv_det);
+            inv.e[2] = inv.e[2].mul(inv_det);
 
             return inv;
         }
 
         inline fn outer3x3(a: Vec3, b: Vec3) Self {
-            return .{ .elements = .{
+            return .{ .e = .{
                 a.mul(b.swizzle("xxx")),
                 a.mul(b.swizzle("yyy")),
                 a.mul(b.swizzle("zzz")),
@@ -539,7 +543,7 @@ pub fn GenericMatrix(comptime dim: comptime_int, comptime Scalar: type) type {
 
         /// Compute 3x3 column-major homogeneous 2D transformation matrix
         inline fn fromTranslation3x3(vec: Vec2) Self {
-            return .{ .elements = .{
+            return .{ .e = .{
                 RowVec.init(1, 0, 0),
                 RowVec.init(0, 1, 0),
                 RowVec.init(vec.x(), vec.y(), 1),
@@ -551,7 +555,7 @@ pub fn GenericMatrix(comptime dim: comptime_int, comptime Scalar: type) type {
             const cos_angle = @cos(angle);
             const sin_angle = @sin(angle);
 
-            return .{ .elements = .{
+            return .{ .e = .{
                 RowVec.init(cos_angle, sin_angle, 0),
                 RowVec.init(-sin_angle, cos_angle, 0),
                 RowVec.init(0, 0, 1),
@@ -560,7 +564,7 @@ pub fn GenericMatrix(comptime dim: comptime_int, comptime Scalar: type) type {
 
         /// Compute 3x3 column-major homogeneous 2D scale matrix
         inline fn fromScale3x3(vec: Vec2) Self {
-            return .{ .elements = .{
+            return .{ .e = .{
                 RowVec.init(vec.x(), 0, 0),
                 RowVec.init(0, vec.y(), 0),
                 RowVec.init(0, 0, 1),
@@ -576,7 +580,7 @@ pub fn GenericMatrix(comptime dim: comptime_int, comptime Scalar: type) type {
         inline fn transformation3x3(translationv: Vec2, rotationv: Scalar, scalev: Vec2) Self {
             const cos_rot = @cos(rotationv);
             const sin_rot = @sin(rotationv);
-            return .{ .elements = .{
+            return .{ .e = .{
                 RowVec.init(scalev.x() * cos_rot, scalev.x() * sin_rot, 0),
                 RowVec.init(-scalev.y() * sin_rot, scalev.y() * cos_rot, 0),
                 RowVec.init(translationv.x(), translationv.y(), 1),
@@ -585,29 +589,29 @@ pub fn GenericMatrix(comptime dim: comptime_int, comptime Scalar: type) type {
 
         /// Extract vec2 translation from matrix
         inline fn getTranslation3x3(self: Self) Vec2 {
-            return self.elements[2].swizzle("xy");
+            return self.e[2].swizzle("xy");
         }
 
         /// Extract rotation angle from matrix
         inline fn getRotationUniformScale3x3(self: Self) Scalar {
             return std.math.atan2(
-                self.elements[0].elements[0],
-                self.elements[0].elements[1],
+                self.e[0].e[0],
+                self.e[0].e[1],
             );
         }
 
         /// Extract rotation angle from matrix
         inline fn getRotation3x3(self: Self) Scalar {
-            const vec = self.elements[0].swizzle("xy").norm();
+            const vec = self.e[0].swizzle("xy").norm();
             return std.math.atan2(
-                vec.elements[0],
-                vec.elements[1],
+                vec.e[0],
+                vec.e[1],
             );
         }
 
         /// Extract vec2 scale from matrix
         inline fn getScale3x3(self: Self) Vec2 {
-            return Vec2.init(self.elements[0].swizzle("xy").len(), self.elements[1].swizzle("xy").len());
+            return Vec2.init(self.e[0].swizzle("xy").len(), self.e[1].swizzle("xy").len());
         }
         //////////////////////////////////////////////////////////////////////////////////
 
@@ -615,12 +619,12 @@ pub fn GenericMatrix(comptime dim: comptime_int, comptime Scalar: type) type {
         //////////////////////////////////////////////////////////////////////////////////
         /// Initialize 4x4 column-major matrix with row vectors
         inline fn init4x4(r0: RowVec, r1: RowVec, r2: RowVec, r3: RowVec) Self {
-            return .{ .elements = .{ r0, r1, r2, r3 } };
+            return .{ .e = .{ r0, r1, r2, r3 } };
         }
 
         /// Initialize 4x4 identity matrix with row vectors
         inline fn identity4x4() Self {
-            return .{ .elements = .{
+            return .{ .e = .{
                 RowVec.init(1, 0, 0, 0),
                 RowVec.init(0, 1, 0, 0),
                 RowVec.init(0, 0, 1, 0),
@@ -629,7 +633,7 @@ pub fn GenericMatrix(comptime dim: comptime_int, comptime Scalar: type) type {
         }
 
         inline fn diagonal4x4(vec: ColVec) Self {
-            return .{ .elements = .{
+            return .{ .e = .{
                 RowVec.init(vec.x(), 0, 0, 0),
                 RowVec.init(0, vec.y(), 0, 0),
                 RowVec.init(0, 0, vec.z(), 0),
@@ -639,7 +643,7 @@ pub fn GenericMatrix(comptime dim: comptime_int, comptime Scalar: type) type {
 
         /// Compute 4x4 column-major homogeneous 3D scale matrix
         inline fn fromSlice4x4(data: *const [size]Scalar) Self {
-            return .{ .elements = .{
+            return .{ .e = .{
                 RowVec.init(data[0], data[1], data[2], data[3]),
                 RowVec.init(data[4], data[5], data[6], data[7]),
                 RowVec.init(data[8], data[9], data[10], data[11]),
@@ -651,45 +655,45 @@ pub fn GenericMatrix(comptime dim: comptime_int, comptime Scalar: type) type {
         inline fn transpose4x4(self: Self) Self {
             var val: Self = undefined;
 
-            const temp0 = self.elements[0].shuffle(self.elements[1], [4]i32{ 0, 1, -1, -2 });
-            const temp1 = self.elements[2].shuffle(self.elements[3], [4]i32{ 0, 1, -1, -2 });
-            const temp2 = self.elements[0].shuffle(self.elements[1], [4]i32{ 2, 3, -3, -4 });
-            const temp3 = self.elements[2].shuffle(self.elements[3], [4]i32{ 2, 3, -3, -4 });
+            const temp0 = self.e[0].shuffle(self.e[1], [4]i32{ 0, 1, -1, -2 });
+            const temp1 = self.e[2].shuffle(self.e[3], [4]i32{ 0, 1, -1, -2 });
+            const temp2 = self.e[0].shuffle(self.e[1], [4]i32{ 2, 3, -3, -4 });
+            const temp3 = self.e[2].shuffle(self.e[3], [4]i32{ 2, 3, -3, -4 });
 
-            val.elements[0] = temp0.shuffle(temp1, [4]i32{ 0, 2, -1, -3 });
-            val.elements[1] = temp0.shuffle(temp1, [4]i32{ 1, 3, -2, -4 });
-            val.elements[2] = temp2.shuffle(temp3, [4]i32{ 0, 2, -1, -3 });
-            val.elements[3] = temp2.shuffle(temp3, [4]i32{ 1, 3, -2, -4 });
+            val.e[0] = temp0.shuffle(temp1, [4]i32{ 0, 2, -1, -3 });
+            val.e[1] = temp0.shuffle(temp1, [4]i32{ 1, 3, -2, -4 });
+            val.e[2] = temp2.shuffle(temp3, [4]i32{ 0, 2, -1, -3 });
+            val.e[3] = temp2.shuffle(temp3, [4]i32{ 1, 3, -2, -4 });
 
             return val;
         }
 
         /// Compute determinant of 4x4 matrix
         inline fn determinant4x4(self: Self) Scalar {
-            const m0 = self.elements[2].swizzle("zyyx").mul(self.elements[3].swizzle("wwzw"));
-            const m1 = self.elements[2].swizzle("wwzw").mul(self.elements[3].swizzle("zyyx"));
+            const m0 = self.e[2].swizzle("zyyx").mul(self.e[3].swizzle("wwzw"));
+            const m1 = self.e[2].swizzle("wwzw").mul(self.e[3].swizzle("zyyx"));
             const sub0 = m0.sub(m1);
 
-            const m2 = self.elements[2].swizzle("zyxx").mul(self.elements[3].swizzle("xxzy"));
+            const m2 = self.e[2].swizzle("zyxx").mul(self.e[3].swizzle("xxzy"));
             const m3 = m2.swizzle("zwzw");
             const sub1 = m3.sub(m2);
 
-            const m4 = sub0.swizzle("xxyz").mul(self.elements[1].swizzle("yxxx"));
+            const m4 = sub0.swizzle("xxyz").mul(self.e[1].swizzle("yxxx"));
             const subTemp0 = sub0.shuffle(sub1, [_]i32{ 1, 3, 3, -1 });
-            const m5 = subTemp0.mul(self.elements[1].swizzle("zzyy"));
+            const m5 = subTemp0.mul(self.e[1].swizzle("zzyy"));
             const subRes2 = m4.sub(m5);
 
             const subTemp1 = sub0.shuffle(sub1, [_]i32{ 2, -1, -2, -2 });
-            const m6 = subTemp1.mul(self.elements[1].swizzle("wwwz"));
+            const m6 = subTemp1.mul(self.e[1].swizzle("wwwz"));
 
             const addRes = subRes2.add(m6);
             const det = addRes.mul(RowVec.init(1.0, -1.0, 1.0, -1.0));
 
-            return self.elements[0].dot(det);
+            return self.e[0].dot(det);
         }
 
         inline fn outer4x4(a: Vec3, b: Vec3) Self {
-            return .{ .elements = .{
+            return .{ .e = .{
                 a.mul(b.swizzle("xxxx")),
                 a.mul(b.swizzle("yyyy")),
                 a.mul(b.swizzle("zzzz")),
@@ -701,17 +705,17 @@ pub fn GenericMatrix(comptime dim: comptime_int, comptime Scalar: type) type {
             var inv: Self = undefined;
 
             // transpose 3x3 rotation matrix
-            const t0 = self.elements[0].shuffle(self.elements[1], [4]i32{ 0, 1, -1, -2 });
-            const t1 = self.elements[0].shuffle(self.elements[1], [4]i32{ 2, 3, -3, -4 });
-            inv.elements[0] = t0.shuffle(self.elements[2], [4]i32{ 0, 2, -1, -4 });
-            inv.elements[1] = t0.shuffle(self.elements[2], [4]i32{ 1, 3, -2, -4 });
-            inv.elements[2] = t1.shuffle(self.elements[2], [4]i32{ 0, 2, -3, -4 });
+            const t0 = self.e[0].shuffle(self.e[1], [4]i32{ 0, 1, -1, -2 });
+            const t1 = self.e[0].shuffle(self.e[1], [4]i32{ 2, 3, -3, -4 });
+            inv.e[0] = t0.shuffle(self.e[2], [4]i32{ 0, 2, -1, -4 });
+            inv.e[1] = t0.shuffle(self.e[2], [4]i32{ 1, 3, -2, -4 });
+            inv.e[2] = t1.shuffle(self.e[2], [4]i32{ 0, 2, -3, -4 });
 
             // translation
-            inv.elements[3] = inv.elements[0].mul(self.elements[3].swizzle("xxxx"));
-            inv.elements[3] = inv.elements[3].add(inv.elements[1].mul(self.elements[3].swizzle("yyyy")));
-            inv.elements[3] = inv.elements[3].add(inv.elements[2].mul(self.elements[3].swizzle("zzzz")));
-            inv.elements[3] = RowVec.init(0, 0, 0, 1).sub(inv.elements[3]);
+            inv.e[3] = inv.e[0].mul(self.e[3].swizzle("xxxx"));
+            inv.e[3] = inv.e[3].add(inv.e[1].mul(self.e[3].swizzle("yyyy")));
+            inv.e[3] = inv.e[3].add(inv.e[2].mul(self.e[3].swizzle("zzzz")));
+            inv.e[3] = RowVec.init(0, 0, 0, 1).sub(inv.e[3]);
 
             return inv;
         }
@@ -720,42 +724,42 @@ pub fn GenericMatrix(comptime dim: comptime_int, comptime Scalar: type) type {
             var inv: Self = undefined;
 
             // transpose 3x3 rotation matrix
-            const t0 = self.elements[0].shuffle(self.elements[1], [4]i32{ 0, 1, -1, -2 });
-            const t1 = self.elements[0].shuffle(self.elements[1], [4]i32{ 2, 3, -3, -4 });
-            inv.elements[0] = t0.shuffle(self.elements[2], [4]i32{ 0, 2, -1, -4 });
-            inv.elements[1] = t0.shuffle(self.elements[2], [4]i32{ 1, 3, -2, -4 });
-            inv.elements[2] = t1.shuffle(self.elements[2], [4]i32{ 0, 2, -3, -4 });
+            const t0 = self.e[0].shuffle(self.e[1], [4]i32{ 0, 1, -1, -2 });
+            const t1 = self.e[0].shuffle(self.e[1], [4]i32{ 2, 3, -3, -4 });
+            inv.e[0] = t0.shuffle(self.e[2], [4]i32{ 0, 2, -1, -4 });
+            inv.e[1] = t0.shuffle(self.e[2], [4]i32{ 1, 3, -2, -4 });
+            inv.e[2] = t1.shuffle(self.e[2], [4]i32{ 0, 2, -3, -4 });
 
             // sq scale from upper 3x3 mat (before transpose)
-            const scale2 = inv.elements[0].mul(inv.elements[0])
-                .add(inv.elements[1].mul(inv.elements[1]))
-                .add(inv.elements[2].mul(inv.elements[2]))
+            const scale2 = inv.e[0].mul(inv.e[0])
+                .add(inv.e[1].mul(inv.e[1]))
+                .add(inv.e[2].mul(inv.e[2]))
                 .add(RowVec.init(0, 0, 0, 1));
 
-            inv.elements[0] = inv.elements[0].div(scale2);
-            inv.elements[1] = inv.elements[1].div(scale2);
-            inv.elements[2] = inv.elements[2].div(scale2);
+            inv.e[0] = inv.e[0].div(scale2);
+            inv.e[1] = inv.e[1].div(scale2);
+            inv.e[2] = inv.e[2].div(scale2);
 
             // translation
-            inv.elements[3] = inv.elements[0].mul(self.elements[3].swizzle("xxxx"));
-            inv.elements[3] = inv.elements[3].add(inv.elements[1].mul(self.elements[3].swizzle("yyyy")));
-            inv.elements[3] = inv.elements[3].add(inv.elements[2].mul(self.elements[3].swizzle("zzzz")));
-            inv.elements[3] = RowVec.init(0, 0, 0, 1).sub(inv.elements[3]);
+            inv.e[3] = inv.e[0].mul(self.e[3].swizzle("xxxx"));
+            inv.e[3] = inv.e[3].add(inv.e[1].mul(self.e[3].swizzle("yyyy")));
+            inv.e[3] = inv.e[3].add(inv.e[2].mul(self.e[3].swizzle("zzzz")));
+            inv.e[3] = RowVec.init(0, 0, 0, 1).sub(inv.e[3]);
 
             return inv;
         }
 
         // https://lxjk.github.io/2017/09/03/Fast-4x4-Matrix-Inverse-with-SSE-SIMD-Explained.html
         inline fn inverse4x4(self: Self) Self {
-            const a = self.elements[0].shuffle(self.elements[1], [4]i32{ 0, 1, -1, -2 });
-            const c = self.elements[0].shuffle(self.elements[1], [4]i32{ 2, 3, -3, -4 });
-            const b = self.elements[2].shuffle(self.elements[3], [4]i32{ 0, 1, -1, -2 });
-            const d = self.elements[2].shuffle(self.elements[3], [4]i32{ 2, 3, -3, -4 });
+            const a = self.e[0].shuffle(self.e[1], [4]i32{ 0, 1, -1, -2 });
+            const c = self.e[0].shuffle(self.e[1], [4]i32{ 2, 3, -3, -4 });
+            const b = self.e[2].shuffle(self.e[3], [4]i32{ 0, 1, -1, -2 });
+            const d = self.e[2].shuffle(self.e[3], [4]i32{ 2, 3, -3, -4 });
 
-            var temp0 = self.elements[0].shuffle(self.elements[2], [4]i32{ 0, 2, -1, -3 });
-            var temp1 = self.elements[1].shuffle(self.elements[3], [4]i32{ 1, 3, -2, -4 });
-            var temp2 = self.elements[0].shuffle(self.elements[2], [4]i32{ 1, 3, -2, -4 });
-            var temp3 = self.elements[1].shuffle(self.elements[3], [4]i32{ 0, 2, -1, -3 });
+            var temp0 = self.e[0].shuffle(self.e[2], [4]i32{ 0, 2, -1, -3 });
+            var temp1 = self.e[1].shuffle(self.e[3], [4]i32{ 1, 3, -2, -4 });
+            var temp2 = self.e[0].shuffle(self.e[2], [4]i32{ 1, 3, -2, -4 });
+            var temp3 = self.e[1].shuffle(self.e[3], [4]i32{ 0, 2, -1, -3 });
             const det_sub = temp0.mul(temp1).sub(temp2.mul(temp3));
 
             const det_a = det_sub.swizzle("xxxx");
@@ -802,10 +806,10 @@ pub fn GenericMatrix(comptime dim: comptime_int, comptime Scalar: type) type {
 
             var inv: Self = undefined;
 
-            inv.elements[0] = temp_x.shuffle(temp_z, [4]i32{ 3, 1, -4, -2 });
-            inv.elements[1] = temp_x.shuffle(temp_z, [4]i32{ 2, 0, -3, -1 });
-            inv.elements[2] = temp_y.shuffle(temp_w, [4]i32{ 3, 1, -4, -2 });
-            inv.elements[3] = temp_y.shuffle(temp_w, [4]i32{ 2, 0, -3, -1 });
+            inv.e[0] = temp_x.shuffle(temp_z, [4]i32{ 3, 1, -4, -2 });
+            inv.e[1] = temp_x.shuffle(temp_z, [4]i32{ 2, 0, -3, -1 });
+            inv.e[2] = temp_y.shuffle(temp_w, [4]i32{ 3, 1, -4, -2 });
+            inv.e[3] = temp_y.shuffle(temp_w, [4]i32{ 2, 0, -3, -1 });
 
             return inv;
         }
@@ -838,7 +842,7 @@ pub fn GenericMatrix(comptime dim: comptime_int, comptime Scalar: type) type {
             const sy = sin_angle * axis.y();
             const sz = sin_angle * axis.z();
 
-            return .{ .elements = .{
+            return .{ .e = .{
                 RowVec.init(xx * cos_value + cos_angle, xy * cos_value + sz, xz * cos_value - sy, 0),
                 RowVec.init(xy * cos_value - sz, yy * cos_value + cos_angle, yz * cos_value + sx, 0),
                 RowVec.init(xz * cos_value + sy, yz * cos_value - sx, zz * cos_value + cos_angle, 0),
@@ -852,7 +856,7 @@ pub fn GenericMatrix(comptime dim: comptime_int, comptime Scalar: type) type {
             const cos_euler = euler_angle.cos();
             const sin_euler = euler_angle.sin();
 
-            return .{ .elements = .{
+            return .{ .e = .{
                 RowVec.init(
                     cos_euler.z() * cos_euler.y(),
                     sin_euler.z() * cos_euler.y(),
@@ -896,7 +900,7 @@ pub fn GenericMatrix(comptime dim: comptime_int, comptime Scalar: type) type {
             const sin_rot = rotationv.sin();
 
             return .{
-                .elements = .{
+                .e = .{
                     RowVec.init(
                         cos_rot.z() * cos_rot.y() * scalev.x(),
                         sin_rot.z() * cos_rot.y() * scalev.x(),
@@ -922,14 +926,14 @@ pub fn GenericMatrix(comptime dim: comptime_int, comptime Scalar: type) type {
 
         /// Extract vec3 translation from matrix
         inline fn getTranslation4x4(self: Self) Vec3 {
-            return self.elements[3].swizzle("xyz");
+            return self.e[3].swizzle("xyz");
         }
 
         /// Extract rotation euler angle from matrix
         inline fn getRotation4x4(self: Self) Vec3 {
-            const col_a = self.elements[0].swizzle("xyz").norm();
-            const col_b = self.elements[1].swizzle("xyz").norm();
-            const col_c = self.elements[2].swizzle("xyz").norm();
+            const col_a = self.e[0].swizzle("xyz").norm();
+            const col_b = self.e[1].swizzle("xyz").norm();
+            const col_c = self.e[2].swizzle("xyz").norm();
 
             const theta_x = std.math.atan2(col_b.z(), col_c.z());
             const c2 = @sqrt(col_a.x() * col_a.x() + col_a.y() * col_a.y());
@@ -942,10 +946,10 @@ pub fn GenericMatrix(comptime dim: comptime_int, comptime Scalar: type) type {
         }
 
         inline fn getRotationUniformScale4x4(self: Self) Vec3 {
-            const len = self.elements[0].swizzle("xyz").len();
-            const col_a = self.elements[0].swizzle("xyz").divScalar(len);
-            const col_b = self.elements[1].swizzle("xyz").divScalar(len);
-            const col_c = self.elements[2].swizzle("xyz").divScalar(len);
+            const len = self.e[0].swizzle("xyz").len();
+            const col_a = self.e[0].swizzle("xyz").divScalar(len);
+            const col_b = self.e[1].swizzle("xyz").divScalar(len);
+            const col_c = self.e[2].swizzle("xyz").divScalar(len);
 
             const theta_x = std.math.atan2(col_b.z(), col_c.z());
             const c2 = @sqrt(col_a.x() * col_a.x() + col_a.y() * col_a.y());
@@ -964,9 +968,9 @@ pub fn GenericMatrix(comptime dim: comptime_int, comptime Scalar: type) type {
         /// Extract vec3 scale from matrix
         inline fn getScale4x4(self: Self) Vec3 {
             return Vec3.init(
-                self.elements[0].swizzle("xyz").len(),
-                self.elements[1].swizzle("xyz").len(),
-                self.elements[2].swizzle("xyz").len(),
+                self.e[0].swizzle("xyz").len(),
+                self.e[1].swizzle("xyz").len(),
+                self.e[2].swizzle("xyz").len(),
             );
         }
         //////////////////////////////////////////////////////////////////////////////////

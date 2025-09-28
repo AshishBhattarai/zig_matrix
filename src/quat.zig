@@ -11,51 +11,62 @@ pub fn GenericQuat(comptime Scalar: type) type {
     return extern struct {
         const Self = @This();
         const Elements = @Vector(4, Scalar);
+        const EArray = [4]Scalar;
 
-        elements: Elements,
+        e: Elements,
 
         pub inline fn init(xv: Scalar, yv: Scalar, zv: Scalar, wv: Scalar) Self {
-            return .{ .elements = [4]Scalar{ xv, yv, zv, wv } };
+            return .{ .e = [4]Scalar{ xv, yv, zv, wv } };
         }
 
         pub inline fn identity() Self {
-            return .{ .elements = [4]Scalar{ 0.0, 0.0, 0.0, 1.0 } };
+            return .{ .e = [4]Scalar{ 0.0, 0.0, 0.0, 1.0 } };
         }
 
         pub inline fn fromSlice(data: []const Scalar) Self {
-            return .{ .elements = data[0..4].* };
+            return .{ .e = data[0..4].* };
         }
 
         pub inline fn x(self: Self) Scalar {
-            return self.elements[0];
+            return self.e[0];
         }
 
         pub inline fn y(self: Self) Scalar {
-            return self.elements[1];
+            return self.e[1];
         }
 
         pub inline fn z(self: Self) Scalar {
-            return self.elements[2];
+            return self.e[2];
         }
 
         pub inline fn w(self: Self) Scalar {
-            return self.elements[3];
+            return self.e[3];
+        }
+
+        pub inline fn elem(self: Self, index: usize) Scalar {
+            return @as(EArray, self.e)[index];
+        }
+
+        pub inline fn setElem(self: *Self, index: usize, value: Scalar) void {
+            var array: EArray = self.e;
+            array[index] = value;
+            self.e = array;
         }
 
         pub inline fn mul(a: Self, b: Self) Self {
-            const xv = splat(a.elements[0]) * @shuffle(Scalar, b.elements, -b.elements, [4]i32{ 3, -3, 1, -1 });
-            const yv = splat(a.elements[1]) * @shuffle(Scalar, b.elements, -b.elements, [4]i32{ 2, 3, -1, -2 });
-            const zv = splat(a.elements[2]) * @shuffle(Scalar, b.elements, -b.elements, [4]i32{ -2, 0, 3, -3 });
-            const wv = splat(a.elements[3]) * b.elements;
-            return .{ .elements = xv + yv + zv + wv };
+            const xv = splat(a.e[0]) * @shuffle(Scalar, b.e, -b.e, [4]i32{ 3, -3, 1, -1 });
+            const yv = splat(a.e[1]) * @shuffle(Scalar, b.e, -b.e, [4]i32{ 2, 3, -1, -2 });
+            const zv = splat(a.e[2]) * @shuffle(Scalar, b.e, -b.e, [4]i32{ -2, 0, 3, -3 });
+            const wv = splat(a.e[3]) * b.e;
+            return .{ .e = xv + yv + zv + wv };
         }
 
         // pure * quat
         pub inline fn mulP(quat: Self, vec: Vec3) Self {
-            const xv = splat(vec.elements[0]) * @shuffle(Scalar, quat.elements, -quat.elements, [4]i32{ 3, -3, 1, -1 });
-            const yv = splat(vec.elements[1]) * @shuffle(Scalar, quat.elements, -quat.elements, [4]i32{ 2, 3, -1, -2 });
-            const zv = splat(vec.elements[2]) * @shuffle(Scalar, quat.elements, -quat.elements, [4]i32{ -2, 0, 3, -3 });
-            return .{ .elements = xv + yv + zv };
+            const xv = splat(vec.e[0]) * @shuffle(Scalar, quat.e, -quat.e, [4]i32{ 3, -3, 1, -1 });
+            const yv = splat(vec.e[1]) * @shuffle(Scalar, quat.e, -quat.e, [4]i32{ 2, 3, -1, -2 });
+            const zv = splat(vec.e[2]) * @shuffle(Scalar, quat.e, -quat.e, [4]i32{ -2, 0, 3, -3 });
+            return .{ .e = xv + yv + zv };
         }
 
         // assumes the quaternion is unit
@@ -63,7 +74,7 @@ pub fn GenericQuat(comptime Scalar: type) type {
         pub inline fn rotate(self: Self, vec: Vec3) Vec3 {
             const qvec = self.toVec();
             const t = qvec.cross(vec).mulScalar(2.0);
-            const qw: Vec3 = .{ .elements = @shuffle(Scalar, self.elements, undefined, [3]i32{ 3, 3, 3 }) };
+            const qw: Vec3 = .{ .e = @shuffle(Scalar, self.e, undefined, [3]i32{ 3, 3, 3 }) };
             return vec.add(t.mul(qw)).add(qvec.cross(t));
         }
 
@@ -72,10 +83,10 @@ pub fn GenericQuat(comptime Scalar: type) type {
             const cos_ha = @cos(anglev * 0.5);
             const sin_ha = @sin(anglev * 0.5);
 
-            const t0 = splat(cos_ha) * self.elements;
-            const t1 = splat(sin_ha) * @shuffle(Scalar, self.elements, -self.elements, [4]i32{ 3, 2, -2, -1 });
+            const t0 = splat(cos_ha) * self.e;
+            const t1 = splat(sin_ha) * @shuffle(Scalar, self.e, -self.e, [4]i32{ 3, 2, -2, -1 });
 
-            return .{ .elements = t0 + t1 };
+            return .{ .e = t0 + t1 };
         }
 
         // quat * quat(0, sin(angle*0.5), 0, cos(angle*0.5))
@@ -83,10 +94,10 @@ pub fn GenericQuat(comptime Scalar: type) type {
             const cos_ha = @cos(anglev * 0.5);
             const sin_ha = @sin(anglev * 0.5);
 
-            const t0 = splat(cos_ha) * self.elements;
-            const t1 = splat(sin_ha) * @shuffle(Scalar, self.elements, -self.elements, [4]i32{ -3, 3, 0, -2 });
+            const t0 = splat(cos_ha) * self.e;
+            const t1 = splat(sin_ha) * @shuffle(Scalar, self.e, -self.e, [4]i32{ -3, 3, 0, -2 });
 
-            return .{ .elements = t0 + t1 };
+            return .{ .e = t0 + t1 };
         }
 
         // quat * quat(0, 0, sin(angle*0.5), cos(angle*0.5))
@@ -94,10 +105,10 @@ pub fn GenericQuat(comptime Scalar: type) type {
             const cos_ha = @cos(anglev * 0.5);
             const sin_ha = @sin(anglev * 0.5);
 
-            const t0 = splat(cos_ha) * self.elements;
-            const t1 = splat(sin_ha) * @shuffle(Scalar, self.elements, -self.elements, [4]i32{ -2, 0, 3, -3 });
+            const t0 = splat(cos_ha) * self.e;
+            const t1 = splat(sin_ha) * @shuffle(Scalar, self.e, -self.e, [4]i32{ -2, 0, 3, -3 });
 
-            return .{ .elements = t0 + t1 };
+            return .{ .e = t0 + t1 };
         }
 
         // zyx order, quat = (z * y * x)
@@ -105,7 +116,7 @@ pub fn GenericQuat(comptime Scalar: type) type {
             const cos_euler = euler_angle.mulScalar(0.5).cos();
             const sin_euler = euler_angle.mulScalar(0.5).sin();
 
-            return .{ .elements = [4]Scalar{
+            return .{ .e = [4]Scalar{
                 sin_euler.x() * cos_euler.y() * cos_euler.z() - cos_euler.x() * sin_euler.y() * sin_euler.z(),
                 cos_euler.x() * sin_euler.y() * cos_euler.z() + sin_euler.x() * cos_euler.y() * sin_euler.z(),
                 cos_euler.x() * cos_euler.y() * sin_euler.z() - sin_euler.x() * sin_euler.y() * cos_euler.z(),
@@ -123,7 +134,7 @@ pub fn GenericQuat(comptime Scalar: type) type {
                 2 * (self.w() * self.z() + self.x() * self.y()),
                 1 - 2 * (self.y() * self.y() + self.z() * self.z()),
             );
-            return .{ .elements = [3]Scalar{ ax, ay, az } };
+            return .{ .e = [3]Scalar{ ax, ay, az } };
         }
 
         pub inline fn fromAxis(anglev: Scalar, axis: Vec3) Self {
@@ -191,7 +202,7 @@ pub fn GenericQuat(comptime Scalar: type) type {
             const q23, const t23 = if (m00 < -m11) .{ q2, t2 } else .{ q3, t3 };
             const q, const t = if (m22 < 0) .{ q01, t01 } else .{ q23, t23 };
 
-            return .{ .elements = (q * splat(0.5 / @sqrt(t))) };
+            return .{ .e = (q * splat(0.5 / @sqrt(t))) };
         }
 
         pub inline fn fromMat4(mat: Mat4) Self {
@@ -199,15 +210,15 @@ pub fn GenericQuat(comptime Scalar: type) type {
         }
 
         pub inline fn fromVec(vec: Vec3, wv: Scalar) Self {
-            return .{ .elements = [4]Scalar{ vec.elements[0], vec.elements[1], vec.elements[2], wv } };
+            return .{ .e = [4]Scalar{ vec.e[0], vec.e[1], vec.e[2], wv } };
         }
 
         pub inline fn toVec(self: Self) Vec3 {
-            return .{ .elements = [3]Scalar{ self.elements[0], self.elements[1], self.elements[2] } };
+            return .{ .e = [3]Scalar{ self.e[0], self.e[1], self.e[2] } };
         }
 
         pub inline fn lerp(a: Self, b: Self, t: Scalar) Self {
-            return .{ .elements = a.elements + splat(t) * (b.elements - a.elements) };
+            return .{ .e = a.e + splat(t) * (b.e - a.e) };
         }
 
         // assumes a,b are unit quaternion
@@ -228,43 +239,43 @@ pub fn GenericQuat(comptime Scalar: type) type {
             else
                 .{ @sin((1 - t) * theta) / @sin(theta), @sin(theta * t) / @sin(theta) };
 
-            return .{ .elements = splat(w0) * a.elements + splat(w1) * b.elements };
+            return .{ .e = splat(w0) * a.e + splat(w1) * b.e };
         }
 
         pub inline fn dot(a: Self, b: Self) Scalar {
-            return @reduce(.Add, a.elements * b.elements);
+            return @reduce(.Add, a.e * b.e);
         }
 
         pub inline fn add(a: Self, b: Self) Self {
-            return .{ .elements = a.elements + b.elements };
+            return .{ .e = a.e + b.e };
         }
 
         pub inline fn sub(a: Self, b: Self) Self {
-            return .{ .elements = a.elements - b.elements };
+            return .{ .e = a.e - b.e };
         }
 
         pub inline fn eql(a: Self, b: Self) bool {
-            return @reduce(.And, a.elements == b.elements);
+            return @reduce(.And, a.e == b.e);
         }
 
         pub inline fn eqlApprox(a: Self, b: Self, tolerance: Scalar) bool {
             var ret = true;
             inline for (0..4) |i| {
-                ret = ret and (@abs(a.elements[i] - b.elements[i]) <= tolerance);
+                ret = ret and (@abs(a.e[i] - b.e[i]) <= tolerance);
             }
             return ret;
         }
 
         pub inline fn inverse(self: Self) Self {
-            return .{ .elements = (conjugate(self).elements / splat(sqrLen(self))) };
+            return .{ .e = (conjugate(self).e / splat(sqrLen(self))) };
         }
 
         pub inline fn conjugate(self: Self) Self {
-            return .{ .elements = self.elements * [4]Scalar{ -1, -1, -1, 1 } };
+            return .{ .e = self.e * [4]Scalar{ -1, -1, -1, 1 } };
         }
 
         pub inline fn sqrLen(self: Self) Scalar {
-            return @reduce(.Add, self.elements * self.elements);
+            return @reduce(.Add, self.e * self.e);
         }
 
         pub inline fn len(self: Self) Scalar {
@@ -287,25 +298,25 @@ pub fn GenericQuat(comptime Scalar: type) type {
         }
 
         pub inline fn addScalar(a: Self, s: Scalar) Self {
-            return .{ .elements = a.elements + splat(s) };
+            return .{ .e = a.e + splat(s) };
         }
 
         pub inline fn subScalar(a: Self, s: Scalar) Self {
-            return .{ .elements = a.elements - splat(s) };
+            return .{ .e = a.e - splat(s) };
         }
 
         pub inline fn mulScalar(a: Self, s: Scalar) Self {
-            return .{ .elements = a.elements * splat(s) };
+            return .{ .e = a.e * splat(s) };
         }
 
         pub inline fn divScalar(a: Self, s: Scalar) Self {
-            return .{ .elements = a.elements / splat(s) };
+            return .{ .e = a.e / splat(s) };
         }
 
         pub inline fn isInf(self: Self) bool {
             var is_inf = false;
             inline for (0..4) |i| {
-                is_inf = std.math.isInf(self.elements[i]) or is_inf;
+                is_inf = std.math.isInf(self.e[i]) or is_inf;
             }
             return is_inf;
         }
@@ -313,7 +324,7 @@ pub fn GenericQuat(comptime Scalar: type) type {
         pub inline fn isNan(self: Self) bool {
             var is_nan = false;
             inline for (0..4) |i| {
-                is_nan = std.math.isNan(self.elements[i]) or is_nan;
+                is_nan = std.math.isNan(self.e[i]) or is_nan;
             }
             return is_nan;
         }
@@ -475,4 +486,12 @@ test "isNan isInf" {
 
     try testing.expect(a.isInf());
     try testing.expect(b.isNan());
+}
+
+test "elem, setElem" {
+    const Quat = GenericQuat(f32);
+    var a = Quat.identity();
+    a.setElem(3, 10);
+
+    try testing.expectEqual(Quat.init(0, 0, 0, 10), a);
 }

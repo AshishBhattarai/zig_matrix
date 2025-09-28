@@ -11,11 +11,12 @@ pub fn GenericVector(comptime dim_i: comptime_int, comptime Scalar: type) type {
     return extern struct {
         const Self = @This();
         const Elements = @Vector(dim, Scalar);
+        const EArray = [dim]Scalar;
         pub const dim = dim_i;
         pub const dim_row = dim_i;
         pub const dim_col = 1;
 
-        elements: Elements,
+        e: Elements,
 
         pub const init = switch (dim) {
             2 => init2,
@@ -81,19 +82,29 @@ pub fn GenericVector(comptime dim_i: comptime_int, comptime Scalar: type) type {
         };
 
         pub inline fn x(self: Self) Scalar {
-            return self.elements[0];
+            return self.e[0];
         }
 
         pub inline fn y(self: Self) Scalar {
-            return self.elements[1];
+            return self.e[1];
         }
 
         pub inline fn z(self: Self) Scalar {
-            return self.elements[2];
+            return self.e[2];
         }
 
         pub inline fn w(self: Self) Scalar {
-            return self.elements[3];
+            return self.e[3];
+        }
+
+        pub inline fn elem(self: Self, index: usize) Scalar {
+            return @as(EArray, self.e)[index];
+        }
+
+        pub inline fn setElem(self: *Self, index: usize, value: Scalar) void {
+            var array: EArray = self.e;
+            array[index] = value;
+            self.e = array;
         }
 
         const V2 = GenericVector(2, Scalar);
@@ -114,40 +125,40 @@ pub fn GenericVector(comptime dim_i: comptime_int, comptime Scalar: type) type {
         }
 
         pub inline fn add(a: Self, b: Self) Self {
-            return .{ .elements = a.elements + b.elements };
+            return .{ .e = a.e + b.e };
         }
 
         pub inline fn sub(a: Self, b: Self) Self {
-            return .{ .elements = a.elements - b.elements };
+            return .{ .e = a.e - b.e };
         }
 
         pub inline fn mul(a: Self, b: Self) Self {
-            return .{ .elements = a.elements * b.elements };
+            return .{ .e = a.e * b.e };
         }
 
         pub inline fn div(a: Self, b: Self) Self {
-            return .{ .elements = a.elements / b.elements };
+            return .{ .e = a.e / b.e };
         }
 
         pub inline fn addScalar(a: Self, s: Scalar) Self {
-            return .{ .elements = a.elements + Self.splat(s).elements };
+            return .{ .e = a.e + Self.splat(s).e };
         }
 
         pub inline fn subScalar(a: Self, s: Scalar) Self {
-            return .{ .elements = a.elements - Self.splat(s).elements };
+            return .{ .e = a.e - Self.splat(s).e };
         }
 
         pub inline fn mulScalar(a: Self, s: Scalar) Self {
-            return .{ .elements = a.elements * Self.splat(s).elements };
+            return .{ .e = a.e * Self.splat(s).e };
         }
 
         pub inline fn divScalar(a: Self, s: Scalar) Self {
-            return .{ .elements = a.elements / Self.splat(s).elements };
+            return .{ .e = a.e / Self.splat(s).e };
         }
 
         // vector - scalar operations
         pub inline fn dot(a: Self, b: Self) Scalar {
-            return @reduce(.Add, a.elements * b.elements);
+            return @reduce(.Add, a.e * b.e);
         }
 
         // normalized dot product
@@ -165,7 +176,7 @@ pub fn GenericVector(comptime dim_i: comptime_int, comptime Scalar: type) type {
         }
 
         pub inline fn sqrLen(a: Self) Scalar {
-            return @reduce(.Add, a.elements * a.elements);
+            return @reduce(.Add, a.e * a.e);
         }
 
         pub inline fn len(self: Self) Scalar {
@@ -173,35 +184,35 @@ pub fn GenericVector(comptime dim_i: comptime_int, comptime Scalar: type) type {
         }
 
         pub inline fn eql(a: Self, b: Self) bool {
-            return @reduce(.And, a.elements == b.elements);
+            return @reduce(.And, a.e == b.e);
         }
 
         pub inline fn neql(a: Self, b: Self) bool {
-            return @reduce(.Or, a.elements != b.elements);
+            return @reduce(.Or, a.e != b.e);
         }
 
         pub inline fn eqlApprox(a: Self, b: Self, tolerance: Scalar) bool {
-            return @reduce(.And, @abs(a.elements - b.elements) <= @as(@Vector(dim, Scalar), @splat(tolerance)));
+            return @reduce(.And, @abs(a.e - b.e) <= @as(@Vector(dim, Scalar), @splat(tolerance)));
         }
 
         // a < b ?
         pub inline fn lt(a: Self, b: Self) bool {
-            return @reduce(.And, a.elements < b.elements);
+            return @reduce(.And, a.e < b.e);
         }
 
         // a <= b ?
         pub inline fn lte(a: Self, b: Self) bool {
-            return @reduce(.And, a.elements <= b.elements);
+            return @reduce(.And, a.e <= b.e);
         }
 
         // a > b ?
         pub inline fn gt(a: Self, b: Self) bool {
-            return @reduce(.And, a.elements > b.elements);
+            return @reduce(.And, a.e > b.e);
         }
 
         // a >= b ?
         pub inline fn gte(a: Self, b: Self) bool {
-            return @reduce(.And, a.elements >= b.elements);
+            return @reduce(.And, a.e >= b.e);
         }
 
         // vector operations
@@ -211,7 +222,7 @@ pub fn GenericVector(comptime dim_i: comptime_int, comptime Scalar: type) type {
             const normalized = self.divScalar(length);
             const pred: @Vector(dim, bool) = @splat(length < std.math.floatEps(Scalar));
             const zero: @Vector(dim, Scalar) = @splat(0);
-            return .{ .elements = @select(Scalar, pred, zero, normalized.elements) };
+            return .{ .e = @select(Scalar, pred, zero, normalized.e) };
         }
 
         // unchecked norm
@@ -229,41 +240,41 @@ pub fn GenericVector(comptime dim_i: comptime_int, comptime Scalar: type) type {
         }
 
         pub inline fn floor(a: Self) Self {
-            return .{ .elements = @floor(a.elements) };
+            return .{ .e = @floor(a.e) };
         }
 
         pub inline fn ceil(a: Self) Self {
-            return .{ .elements = @ceil(a.elements) };
+            return .{ .e = @ceil(a.e) };
         }
 
         pub inline fn min(a: Self, b: Self) Self {
-            return .{ .elements = @min(a.elements, b.elements) };
+            return .{ .e = @min(a.e, b.e) };
         }
 
         pub inline fn clamp(a: Self, lower: Self, upper: Self) Self {
-            return .{ .elements = @min(@max(lower.elements, a.elements), upper.elements) };
+            return .{ .e = @min(@max(lower.e, a.e), upper.e) };
         }
 
         pub inline fn max(a: Self, b: Self) Self {
-            return .{ .elements = @max(a.elements, b.elements) };
+            return .{ .e = @max(a.e, b.e) };
         }
 
         const MaskType = @Type(.{ .int = .{ .signedness = .unsigned, .bits = dim } });
         pub inline fn minElemIdx(a: Self) u8 {
             const min_elems: Elements = @splat(Self.minElem(a));
-            const mask: MaskType = @bitCast(a.elements == min_elems);
+            const mask: MaskType = @bitCast(a.e == min_elems);
             return @ctz(mask);
         }
 
         pub inline fn maxElemIdx(a: Self) u8 {
             const max_elems: Elements = @splat(Self.maxElem(a));
-            const mask: MaskType = @bitCast(a.elements == max_elems);
+            const mask: MaskType = @bitCast(a.e == max_elems);
             return @ctz(mask);
         }
 
         // a * (1 -t) + bt
         pub inline fn lerp(a: Self, b: Self, t: Scalar) Self {
-            return .{ .elements = a.elements + splat(t).elements * (b.elements - a.elements) };
+            return .{ .e = a.e + splat(t).e * (b.e - a.e) };
         }
 
         pub inline fn inverse(self: Self) Self {
@@ -291,15 +302,15 @@ pub fn GenericVector(comptime dim_i: comptime_int, comptime Scalar: type) type {
         }
 
         pub inline fn cos(self: Self) Self {
-            return .{ .elements = @cos(self.elements) };
+            return .{ .e = @cos(self.e) };
         }
 
         pub inline fn sin(self: Self) Self {
-            return .{ .elements = @sin(self.elements) };
+            return .{ .e = @sin(self.e) };
         }
 
         pub inline fn abs(self: Self) Self {
-            return .{ .elements = @abs(self.elements) };
+            return .{ .e = @abs(self.e) };
         }
 
         pub inline fn sign(self: Self) Self {
@@ -307,10 +318,10 @@ pub fn GenericVector(comptime dim_i: comptime_int, comptime Scalar: type) type {
             const pos: Elements = @splat(1.0);
             const neg: Elements = @splat(-1.0);
 
-            const pos_sign: Elements = @select(Scalar, self.elements > zero, pos, zero);
-            const neg_sign: Elements = @select(Scalar, self.elements < zero, neg, zero);
+            const pos_sign: Elements = @select(Scalar, self.e > zero, pos, zero);
+            const neg_sign: Elements = @select(Scalar, self.e < zero, neg, zero);
 
-            return .{ .elements = pos_sign + neg_sign };
+            return .{ .e = pos_sign + neg_sign };
         }
 
         // sign that doesn't return zero
@@ -319,40 +330,40 @@ pub fn GenericVector(comptime dim_i: comptime_int, comptime Scalar: type) type {
             const pos: Elements = @splat(1.0);
             const neg: Elements = @splat(-1.0);
 
-            return .{ .elements = @select(Scalar, self.elements < zero, neg, pos) };
+            return .{ .e = @select(Scalar, self.e < zero, neg, pos) };
         }
 
         // utilities
 
         pub inline fn shuffle(a: Self, b: Self, mask: @Vector(dim, i32)) Self {
-            return .{ .elements = @shuffle(Scalar, a.elements, b.elements, mask) };
+            return .{ .e = @shuffle(Scalar, a.e, b.e, mask) };
         }
 
         pub inline fn shuffleN(a: Self, b: Self, comptime N: comptime_int, mask: @Vector(N, i32)) GenericVector(N, Scalar) {
-            return .{ .elements = @shuffle(Scalar, a.elements, b.elements, mask) };
+            return .{ .e = @shuffle(Scalar, a.e, b.e, mask) };
         }
 
         pub inline fn select(a: Self, b: Self, pred: @Vector(dim, bool)) Self {
-            return .{ .elements = @select(Scalar, pred, a.elements, b.elements) };
+            return .{ .e = @select(Scalar, pred, a.e, b.e) };
         }
 
         pub inline fn splat(scalar: Scalar) Self {
-            return .{ .elements = @splat(scalar) };
+            return .{ .e = @splat(scalar) };
         }
 
         pub inline fn fract(a: Self) Self {
-            const ipart = @trunc(a.elements);
-            return .{ .elements = a.elements - ipart };
+            const ipart = @trunc(a.e);
+            return .{ .e = a.e - ipart };
         }
 
         pub inline fn fromSlice(data: []const Scalar) Self {
-            return .{ .elements = data[0..dim].* };
+            return .{ .e = data[0..dim].* };
         }
 
         pub inline fn isInf(self: Self) bool {
             var is_inf = false;
             inline for (0..dim) |i| {
-                is_inf = std.math.isInf(self.elements[i]) or is_inf;
+                is_inf = std.math.isInf(self.e[i]) or is_inf;
             }
             return is_inf;
         }
@@ -360,7 +371,7 @@ pub fn GenericVector(comptime dim_i: comptime_int, comptime Scalar: type) type {
         pub inline fn isNan(self: Self) bool {
             var is_nan = false;
             inline for (0..dim) |i| {
-                is_nan = std.math.isNan(self.elements[i]) or is_nan;
+                is_nan = std.math.isNan(self.e[i]) or is_nan;
             }
             return is_nan;
         }
@@ -368,18 +379,18 @@ pub fn GenericVector(comptime dim_i: comptime_int, comptime Scalar: type) type {
         pub inline fn toFloat(self: Self, comptime NewScalar: type) GenericVector(dim_i, NewScalar) {
             ValidateScalarType(NewScalar);
             if (@typeInfo(Scalar) == .float) {
-                return .{ .elements = @floatCast(self.elements) };
+                return .{ .e = @floatCast(self.e) };
             } else {
-                return .{ .elements = @floatFromInt(self.elements) };
+                return .{ .e = @floatFromInt(self.e) };
             }
         }
 
         pub inline fn toInt(self: Self, comptime NewScalar: type) GenericVector(dim_i, NewScalar) {
             ValidateScalarType(NewScalar);
             if (@typeInfo(Scalar) == .int) {
-                return .{ .elements = @intCast(self.elements) };
+                return .{ .e = @intCast(self.e) };
             } else {
-                return .{ .elements = @intFromFloat(self.elements) };
+                return .{ .e = @intFromFloat(self.e) };
             }
         }
 
@@ -394,32 +405,32 @@ pub fn GenericVector(comptime dim_i: comptime_int, comptime Scalar: type) type {
         // 2D vector methods
         //////////////////////////////////////////////////////////////////////////////////
         inline fn init2(xv: Scalar, yv: Scalar) Self {
-            return .{ .elements = .{ xv, yv } };
+            return .{ .e = .{ xv, yv } };
         }
 
         inline fn rotate2(self: Self, ang: Scalar) Self {
             const sin_angle = @sin(ang);
             const cos_angle = @cos(ang);
-            return .{ .elements = .{
+            return .{ .e = .{
                 cos_angle * self.x() - sin_angle * self.y(),
                 sin_angle * self.x() + cos_angle * self.y(),
             } };
         }
 
         inline fn orthogonal2(self: Self) Self {
-            return .{ .elements = .{ -self.elements[1], self.elements[0] } };
+            return .{ .e = .{ -self.e[1], self.e[0] } };
         }
 
         inline fn cross2(a: Self, b: Self) Scalar {
-            return a.elements[0] * b.elements[1] - a.elements[1] * b.elements[0];
+            return a.e[0] * b.e[1] - a.e[1] * b.e[0];
         }
 
         inline fn minElem2(a: Self) Scalar {
-            return @min(a.elements[0], a.elements[1]);
+            return @min(a.e[0], a.e[1]);
         }
 
         inline fn maxElem2(a: Self) Scalar {
-            return @max(a.elements[0], a.elements[1]);
+            return @max(a.e[0], a.e[1]);
         }
 
         //////////////////////////////////////////////////////////////////////////////////
@@ -427,60 +438,60 @@ pub fn GenericVector(comptime dim_i: comptime_int, comptime Scalar: type) type {
         // 3D vector methods
         //////////////////////////////////////////////////////////////////////////////////
         inline fn init3(xv: Scalar, yv: Scalar, zv: Scalar) Self {
-            return .{ .elements = .{ xv, yv, zv } };
+            return .{ .e = .{ xv, yv, zv } };
         }
 
         inline fn cross3(a: Self, b: Self) Self {
-            const tmp0 = a.swizzle("yzx").elements;
-            const tmp1 = b.swizzle("zxy").elements;
-            const tmp2 = a.swizzle("zxy").elements;
-            const tmp3 = b.swizzle("yzx").elements;
+            const tmp0 = a.swizzle("yzx").e;
+            const tmp1 = b.swizzle("zxy").e;
+            const tmp2 = a.swizzle("zxy").e;
+            const tmp3 = b.swizzle("yzx").e;
 
-            return .{ .elements = (tmp0 * tmp1) - (tmp2 * tmp3) };
+            return .{ .e = (tmp0 * tmp1) - (tmp2 * tmp3) };
         }
 
         /// convert polar vector to eculidean vector
         inline fn toEculidean3(self: Self) Self {
-            const vx = self.elements[2] * @sin(self.elements[0]) * @cos(self.elements[1]);
-            const vy = self.elements[2] * @sin(self.elements[0]) * @sin(self.elements[1]);
-            const vz = self.elements[2] * @cos(self.elements[0]);
+            const vx = self.e[2] * @sin(self.e[0]) * @cos(self.e[1]);
+            const vy = self.e[2] * @sin(self.e[0]) * @sin(self.e[1]);
+            const vz = self.e[2] * @cos(self.e[0]);
 
-            return .{ .elements = .{ vx, vy, vz } };
+            return .{ .e = .{ vx, vy, vz } };
         }
 
         /// converr polar direction vector to eculidean direction vector
         inline fn toEculideanDir3(self: Self) Self {
-            const vx = @sin(self.elements[0]) * @cos(self.elements[1]);
-            const vy = @sin(self.elements[0]) * @sin(self.elements[1]);
-            const vz = @cos(self.elements[0]);
+            const vx = @sin(self.e[0]) * @cos(self.e[1]);
+            const vy = @sin(self.e[0]) * @sin(self.e[1]);
+            const vz = @cos(self.e[0]);
 
-            return .{ .elements = .{ vx, vy, vz } };
+            return .{ .e = .{ vx, vy, vz } };
         }
 
         // x - latitude, y - longitude, r - radius
         inline fn toPolar3(self: Self) Self {
             const l = self.len();
-            const azimuth = std.math.acos(self.elements[2] / l);
-            const polar = std.math.atan2(self.elements[1], self.elements[0]);
+            const azimuth = std.math.acos(self.e[2] / l);
+            const polar = std.math.atan2(self.e[1], self.e[0]);
 
-            return .{ .elements = .{ azimuth, polar, l } };
+            return .{ .e = .{ azimuth, polar, l } };
         }
 
         // for a unit lenght 3D vector at least one component must be >= sqrt(1/3)
         const sqrt_inv_3 = @sqrt(1.0 / 3.0);
         // expects normalized input
         pub inline fn orthogonal3(self: Self) Self {
-            const cond = @abs(self.elements[0]) >= sqrt_inv_3;
+            const cond = @abs(self.e[0]) >= sqrt_inv_3;
             const tmp0 = Self.select(Self.init(self.y(), -self.x(), 0.0), Self.init(0.0, self.z(), -self.y()), @splat(cond));
             return tmp0.norm();
         }
 
         inline fn minElem3(a: Self) Scalar {
-            return @min(a.elements[0], a.elements[1], a.elements[2]);
+            return @min(a.e[0], a.e[1], a.e[2]);
         }
 
         inline fn maxElem3(a: Self) Scalar {
-            return @max(a.elements[0], a.elements[1], a.elements[2]);
+            return @max(a.e[0], a.e[1], a.e[2]);
         }
 
         //////////////////////////////////////////////////////////////////////////////////
@@ -488,15 +499,15 @@ pub fn GenericVector(comptime dim_i: comptime_int, comptime Scalar: type) type {
         // 4D vector methods
         //////////////////////////////////////////////////////////////////////////////////
         pub inline fn init4(xv: Scalar, yv: Scalar, zv: Scalar, wv: Scalar) Self {
-            return .{ .elements = .{ xv, yv, zv, wv } };
+            return .{ .e = .{ xv, yv, zv, wv } };
         }
 
         inline fn minElem4(a: Self) Scalar {
-            return @min(a.elements[0], a.elements[1], a.elements[2], a.elements[3]);
+            return @min(a.e[0], a.e[1], a.e[2], a.e[3]);
         }
 
         inline fn maxElem4(a: Self) Scalar {
-            return @max(a.elements[0], a.elements[1], a.elements[2], a.elements[3]);
+            return @max(a.e[0], a.e[1], a.e[2], a.e[3]);
         }
         //////////////////////////////////////////////////////////////////////////////////
 
@@ -532,7 +543,7 @@ pub fn GenericVector(comptime dim_i: comptime_int, comptime Scalar: type) type {
                 else => unreachable,
             };
 
-            return .{ .elements = @shuffle(Scalar, self.elements, undefined, swizzle_elems) };
+            return .{ .e = @shuffle(Scalar, self.e, undefined, swizzle_elems) };
         }
 
         inline fn charToElementIdx(comptime char: u8) comptime_int {
