@@ -136,6 +136,14 @@ pub fn GenericVector(comptime dim_i: comptime_int, comptime Scalar: type) type {
             return .{ .e = a.e * b.e };
         }
 
+        pub inline fn divTrunc(a: Self, b: Self) Self {
+            return .{ .e = @divTrunc(a.e, b.e) };
+        }
+
+        pub inline fn divFloor(a: Self, b: Self) Self {
+            return .{ .e = @divFloor(a.e, b.e) };
+        }
+
         pub inline fn div(a: Self, b: Self) Self {
             return .{ .e = a.e / b.e };
         }
