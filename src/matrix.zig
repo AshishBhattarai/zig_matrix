@@ -2,7 +2,7 @@ const std = @import("std");
 const testing = std.testing;
 const GenericVector = @import("vector.zig").GenericVector;
 
-/// Provides column-major 2x2, 3x3 and 4x4 matrix implementation with some learn algebra capabilities
+/// Provides column-major 2x2, 3x3 and 4x4 matrix implementation with some linear algebra capabilities
 pub fn GenericMatrix(comptime dim: comptime_int, comptime Scalar: type) type {
     const Vec3 = GenericVector(3, Scalar);
     const Vec2 = GenericVector(2, Scalar);
