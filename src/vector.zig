@@ -172,15 +172,20 @@ pub fn GenericVector(comptime dim_i: comptime_int, comptime Scalar: type) type {
         // normalized dot product
         pub inline fn normDot(a: Self, b: Self) Scalar {
             const adota = a.dot(a);
-            const bdotb = a.dot(b);
+            const bdotb = b.dot(b);
             const adotb = a.dot(b);
             const is_zero = adota == 0 or bdotb == 0;
-            const ret = adotb / @sqrt(a.dot(a) * b.dot(b));
+            const inv_sqrt = 1.0 / @sqrt(adota * bdotb);
+            const ret = adotb * inv_sqrt;
             return if (is_zero) 0 else ret;
         }
 
         pub inline fn normDotUc(a: Self, b: Self) Scalar {
-            return a.dot(b) / @sqrt(a.dot(a) * b.dot(b));
+            const adota = a.dot(a);
+            const bdotb = b.dot(b);
+            const adotb = a.dot(b);
+            const inv_sqrt = 1.0 / @sqrt(adota * bdotb);
+            return adotb * inv_sqrt;
         }
 
         pub inline fn sqrLen(a: Self) Scalar {
@@ -226,17 +231,19 @@ pub fn GenericVector(comptime dim_i: comptime_int, comptime Scalar: type) type {
         // vector operations
 
         pub inline fn norm(self: Self) Self {
-            const length = self.len();
-            const normalized = self.divScalar(length);
-            const pred: @Vector(dim, bool) = @splat(length < std.math.floatEps(Scalar));
+            const sqr_len = self.sqrLen();
+            const inv_length = 1.0 / @sqrt(sqr_len);
+            const normalized = self.mulScalar(inv_length);
+            const pred: @Vector(dim, bool) = @splat(sqr_len < std.math.floatEps(Scalar));
             const zero: @Vector(dim, Scalar) = @splat(0);
             return .{ .e = @select(Scalar, pred, zero, normalized.e) };
         }
 
         // unchecked norm
         pub inline fn normUc(self: Self) Self {
-            const length = self.len();
-            return self.divScalar(length);
+            const sqr_len = self.sqrLen();
+            const inv_length = 1.0 / @sqrt(sqr_len);
+            return self.mulScalar(inv_length);
         }
 
         pub inline fn sqrDist(a: Self, b: Self) Scalar {
