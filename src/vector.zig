@@ -274,7 +274,7 @@ pub fn GenericVector(comptime dim_i: comptime_int, comptime Scalar: type) type {
             return .{ .e = @max(a.e, b.e) };
         }
 
-        const MaskType = @Type(.{ .int = .{ .signedness = .unsigned, .bits = dim } });
+        const MaskType = @Int(.unsigned, dim);
         pub inline fn minElemIdx(a: Self) u8 {
             const min_elems: Elements = @splat(Self.minElem(a));
             const mask: MaskType = @bitCast(a.e == min_elems);
