@@ -1,3 +1,5 @@
+
+
 # Linear Algebra Library For Zig
 > zig version: v0.16
 
@@ -20,14 +22,14 @@ This is a linear algebra library for Zig aimed towards computer graphics and gam
 ## Installation
 To add this library to your Zig project using Zig's package manager, append the following to your `build.zig.zon` file:
 
-```zig
-.{
-    .dependencies = .{
-        .zig_matrix = .{
-            .url = "https://github.com/AshishBhattarai/zig-matrix/archive/<commit SHA>.tar.gz",
-            .hash = "<dependency hash>",
-        },
-    },
+```json
+{
+    "dependencies": {
+        "zig_matrix": {
+            "url": "https://github.com/AshishBhattarai/zig-matrix/archive/<commit SHA>.tar.gz",
+            "hash": "<dependency hash>"
+        }
+    }
 }
 ```
 Replace `<commit SHA>` with the commit SHA of the desired version of the library and `<dependency hash>` with the hash of the dependency.
